@@ -117,6 +117,30 @@ button { font: inherit; }
 .pause-button { right: clamp(20px, 4vw, 58px); top: 78px; display: flex; align-items: center; justify-content: center; gap: 5px; }
 .pause-button span { width: 4px; height: 15px; border-radius: 2px; background: white; }
 
+.gym-exit-button {
+  position: absolute;
+  z-index: 8;
+  top: 76px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  border: 1px solid rgba(255,255,255,.62);
+  border-radius: 999px;
+  color: white;
+  background: rgba(12,42,69,.7);
+  box-shadow: 0 8px 24px rgba(8,24,43,.22);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.gym-exit-button strong { font-size: 11px; letter-spacing: .1em; }
+.gym-exit-button small { padding-left: 9px; border-left: 1px solid rgba(255,255,255,.34); font-size: 7px; font-weight: 900; letter-spacing: .12em; opacity: .72; }
+.gym-exit-button.hidden { display: none; }
+.game[data-in-gym="true"] .target-chip { top: 126px; }
+
 .target-chip {
   position: absolute;
   z-index: 5;
@@ -251,6 +275,9 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
   .ball-count strong { font-size: 22px; }
   .mini-ball { width: 23px; height: 23px; }
   .pause-button { width: 36px; height: 36px; top: 61px; right: 14px; }
+  .gym-exit-button { top: 58px; padding: 8px 11px; }
+  .gym-exit-button small { display: none; }
+  .game[data-in-gym="true"] .target-chip { top: 104px; }
   .target-chip { top: 84px; }
   .throw-pad { right: max(13px, env(safe-area-inset-right)); bottom: max(13px, env(safe-area-inset-bottom)); width: 68px; height: 68px; }
   .throw-ball { width: 38px; height: 38px; left: 14px; top: 7px; }

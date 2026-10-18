@@ -14,11 +14,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=22" />
+    <link rel="stylesheet" href="styles.css?v=23" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
-      <canvas id="gameCanvas" aria-label="Three lane Pokémon runner"></canvas>
+      <canvas id="gameCanvas" aria-label="Pokémon lane runner"></canvas>
 
       <header class="hud" aria-label="Game status">
         <div class="brand-lockup" aria-label="Poké Run, 9 generations">
@@ -49,6 +49,10 @@
 
       <button id="pauseButton" class="icon-button pause-button" aria-label="Pause game" type="button">
         <span></span><span></span>
+      </button>
+
+      <button id="gymExitButton" class="gym-exit-button hidden" type="button" aria-label="Exit the gym and return to the route">
+        <strong>EXIT GYM</strong><small>RETURN TO ROUTE</small>
       </button>
 
       <div id="targetChip" class="target-chip" aria-live="polite">
@@ -153,7 +157,7 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=22"></script>
+    <script src="game.js?v=23"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {

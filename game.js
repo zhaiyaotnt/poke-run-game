@@ -12,6 +12,7 @@
     startButton: document.getElementById("startButton"),
     resumeButton: document.getElementById("resumeButton"),
     pauseButton: document.getElementById("pauseButton"),
+    gymExitButton: document.getElementById("gymExitButton"),
     throwPad: document.getElementById("throwPad"),
     targetChip: document.getElementById("targetChip"),
     targetName: document.getElementById("targetName"),
@@ -157,7 +158,7 @@
       pokemonImages.set(creature.type, image);
 
       if (pokemonImages.size > MAX_POKEMON_IMAGES) {
-        const visibleTypes = new Set(state.creatures.map(candidate => candidate.type));
+        const visibleTypes = new Set([...state.creatures, ...state.gymCreatures].map(candidate => candidate.type));
         visibleTypes.add(creature.type);
         for (const type of pokemonImages.keys()) {
           if (!visibleTypes.has(type)) {
@@ -227,6 +228,8 @@
   const DIFFICULTIES = {
     explorer: {
       label: "EXPLORER",
+      laneCount: 5,
+      laneGapRate: 0,
       speed: .081,
       obstacleRate: .3024,
       startingInventory: { poke: 3, great: 1, ultra: 1, master: 0 },
@@ -235,10 +238,12 @@
       encounterCount: 4,
       routeLength: 30,
       bridgeStarts: [],
-      description: "Steady pace • 30 sightings • 3 Poké + 1 Great + 1 Ultra"
+      description: "Five open lanes • 3 gyms • 30 sightings • 3 Poké + 1 Great + 1 Ultra"
     },
     trainer: {
       label: "TRAINER",
+      laneCount: 3,
+      laneGapRate: .32,
       speed: .0929,
       obstacleRate: .486,
       startingInventory: { poke: 2, great: 1, ultra: 0, master: 0 },
@@ -247,10 +252,12 @@
       encounterCount: 3,
       routeLength: 30,
       bridgeStarts: [],
-      description: "Brisk pace • 30 sightings • 2 Poké + 1 Great"
+      description: "Three lanes • occasional lane gaps • 3 gyms • 30 sightings • 2 Poké + 1 Great"
     },
     master: {
       label: "MASTER",
+      laneCount: 3,
+      laneGapRate: .56,
       speed: .108,
       obstacleRate: .6696,
       startingInventory: { poke: 1, great: 1, ultra: 0, master: 0 },
@@ -259,10 +266,12 @@
       encounterCount: 3,
       routeLength: 30,
       bridgeStarts: [],
-      description: "Rapid pace • 30 sightings • 1 Poké + 1 Great"
+      description: "Three lanes • frequent lane gaps • 3 gyms • 30 sightings • 1 Poké + 1 Great"
     },
     legend: {
       label: "LEGEND",
+      laneCount: 3,
+      laneGapRate: .78,
       speed: .1242,
       obstacleRate: .7776,
       startingInventory: { poke: 1, great: 0, ultra: 0, master: 0 },
@@ -271,10 +280,12 @@
       encounterCount: 2,
       routeLength: 30,
       bridgeStarts: [],
-      description: "Fastest pace • 30 sightings • 1 Poké Ball • maximum hazards"
+      description: "Three lanes • long lane gaps • 3 gyms • 30 sightings • 1 Poké Ball • maximum hazards"
     },
     custom: {
       label: "CUSTOM",
+      laneCount: 3,
+      laneGapRate: .48,
       speed: .090,
       obstacleRate: .50,
       startingInventory: { poke: 3, great: 1, ultra: 1, master: 0 },
@@ -285,7 +296,7 @@
       bridgeStarts: [],
       customCounts: true,
       customBallCount: 5,
-      description: "Custom • 100% speed • 5 obstacles • 5 balls • 3 on screen • 30 sightings"
+      description: "Custom • 100% speed • 5 obstacles • 5 balls • 3 gyms • 3 on screen • 30 sightings"
     }
   };
 
@@ -311,13 +322,14 @@
     const custom = DIFFICULTIES.custom;
     custom.speed = .09 * speedPercent / 100;
     custom.obstacleRate = obstacleCount / Math.max(1, obstacleCount + ballCount);
+    custom.laneGapRate = Math.min(.78, obstacleCount / 10 * .78);
     custom.initialObstacleCount = obstacleCount;
     custom.customBallCount = ballCount;
     custom.centerObstacleMinimum = obstacleCount === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil(obstacleCount * .4)));
     custom.encounterCount = encounterCount;
     custom.routeLength = routeLength;
     custom.startingInventory = inventoryForTotal(ballCount);
-    custom.description = `Custom • ${speedPercent}% speed • ${obstacleCount} obstacles • ${ballCount} balls • ${encounterCount} on screen • ${routeLength} sightings`;
+    custom.description = `Custom • ${speedPercent}% speed • ${obstacleCount} obstacles • ${ballCount} balls • 3 gyms • ${encounterCount} on screen • ${routeLength} sightings`;
     ui.customSpeedValue.textContent = `${speedPercent}%`;
     ui.customObstaclesValue.textContent = String(obstacleCount);
     ui.customBallsValue.textContent = String(ballCount);
@@ -352,6 +364,7 @@
     animTime: 0,
     forwardBoost: 0,
     speed: 0.081,
+    roadSeed: 0,
     selected: null,
     thrown: null,
     flash: 0,
@@ -373,7 +386,18 @@
     fallSide: 0,
     riverFallTime: 0,
     throwing: false,
-    dragCurrent: null
+    dragCurrent: null,
+    inGym: false,
+    gymsEntered: 0,
+    gymSchedule: [],
+    gymGateIndex: 0,
+    gymGateActive: false,
+    gymGateZ: .04,
+    gymGateLastGap: null,
+    gymCreatures: [],
+    gymObstacles: [],
+    gymTime: 0,
+    fallReason: null
   };
 
   let width = 0;
@@ -392,9 +416,54 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function randomLane() { return Math.floor(Math.random() * 3) - 1; }
+  function activeLaneCount() {
+    return state.inGym ? 5 : (DIFFICULTIES[state.difficulty].laneCount || 3);
+  }
+
+  function laneValues(count = activeLaneCount()) {
+    const limit = Math.floor(count / 2);
+    return Array.from({ length: count }, (_, index) => index - limit);
+  }
+
+  function randomLane(z = .04) {
+    const lanes = state.inGym ? laneValues(5) : safeLanesAtWorld(state.distance - z);
+    return lanes[Math.floor(Math.random() * lanes.length)] || 0;
+  }
   function randomBetween(a, b) { return a + Math.random() * (b - a); }
   function easeZ(z) { return z * z; }
+
+  function hashUnit(value) {
+    const x = Math.sin(value * 127.1 + 311.7) * 43758.5453123;
+    return x - Math.floor(x);
+  }
+
+  const ROAD_SEGMENT_LENGTH = .265;
+  const ROAD_OBJECT_CLEARANCE = .055;
+
+  function fullRouteLanes() {
+    return laneValues(DIFFICULTIES[state.difficulty].laneCount || 3);
+  }
+
+  function roadIsForcedFull() {
+    return state.finishLineActive || state.gymGateActive;
+  }
+
+  function availableLanesAtWorld(world) {
+    const lanes = fullRouteLanes();
+    const difficulty = DIFFICULTIES[state.difficulty];
+    if (difficulty.laneCount === 5 || roadIsForcedFull()) return lanes;
+    const segmentIndex = Math.floor(world / ROAD_SEGMENT_LENGTH);
+    // Every gap is surrounded by complete road, so the player always gets a
+    // full segment of warning and an escape route.
+    if (((segmentIndex % 3) + 3) % 3 !== 1 || hashUnit(segmentIndex * 2.37 + 19 + state.roadSeed) >= difficulty.laneGapRate) return lanes;
+    const missingLane = hashUnit(segmentIndex * 5.11 + 7 + state.roadSeed * .73) < .5 ? -1 : 1;
+    return lanes.filter(lane => lane !== missingLane);
+  }
+
+  function safeLanesAtWorld(world) {
+    const samples = [world - ROAD_OBJECT_CLEARANCE, world, world + ROAD_OBJECT_CLEARANCE];
+    return fullRouteLanes().filter(lane => samples.every(sample => availableLanesAtWorld(sample).includes(lane)));
+  }
 
   function chooseBallType() {
     const roll = Math.random();
@@ -425,9 +494,12 @@
     });
   }
 
-  function chooseObstacleLane() {
+  function chooseObstacleLane(z = .04) {
+    const valid = state.inGym ? laneValues(5) : safeLanesAtWorld(state.distance - z);
     const roll = Math.random();
-    return roll < .70 ? 0 : roll < .85 ? -1 : 1;
+    if (roll < .70 && valid.includes(0)) return 0;
+    const sides = valid.filter(lane => lane !== 0);
+    return sides[Math.floor(Math.random() * sides.length)] || 0;
   }
 
   function chooseObstacleSubtype(lane = 0) {
@@ -485,7 +557,8 @@
 
   function laneX(lane, z) {
     const road = roadGeometry(z);
-    return width / 2 + lane * road.half * .56;
+    const count = activeLaneCount();
+    return width / 2 + lane * road.half * (2 / count);
   }
 
   function seedWorld() {
@@ -510,7 +583,7 @@
       }
       kinds.forEach((kind, index) => {
         const z = WORLD_ITEM_FRONT - index * WORLD_ITEM_SPACING;
-        const lane = kind === "obstacle" ? chooseObstacleLane(z) : randomLane();
+        const lane = kind === "obstacle" ? chooseObstacleLane(z) : randomLane(z);
         state.worldItems.push({
           kind,
           subtype: kind === "obstacle" ? chooseObstacleSubtype(lane) : null,
@@ -530,7 +603,7 @@
       for (let i = 0; i < 10; i++) {
         const z = WORLD_ITEM_FRONT - i * WORLD_ITEM_SPACING;
         const obstacle = obstacleSlots.has(i);
-        const lane = obstacle ? chooseObstacleLane(z) : randomLane();
+        const lane = obstacle ? chooseObstacleLane(z) : randomLane(z);
         state.worldItems.push({
           kind: obstacle ? "obstacle" : "ball",
           subtype: obstacle ? chooseObstacleSubtype(lane) : null,
@@ -607,18 +680,120 @@
     return true;
   }
 
+  function spawnGymCreature(z = randomBetween(.20, .64)) {
+    const visibleTypes = new Set([...state.creatures, ...state.gymCreatures].map(creature => creature.type));
+    const options = creatureRoster.filter(creature => !visibleTypes.has(creature.type));
+    const base = chooseEncounter(options.length ? options : creatureRoster);
+    getPokemonImage(base);
+    const lane = laneValues(5)[Math.floor(Math.random() * 5)];
+    state.gymCreatures.push({
+      ...base,
+      id: `gym-${base.type}-${Math.random().toString(36).slice(2)}`,
+      arena: true,
+      lane,
+      z,
+      fieldDistance: .10 + Math.abs(lane) * .07,
+      bob: Math.random() * TAU,
+      life: randomBetween(0, 4),
+      caught: false,
+      screenX: 0,
+      screenY: 0,
+      screenR: 0
+    });
+  }
+
+  function resetGymObstacle(item, index = 0) {
+    item.kind = "obstacle";
+    item.lane = laneValues(5)[Math.floor(Math.random() * 5)];
+    item.z = -.02 - index * .16 - randomBetween(.02, .12);
+    item.lastGap = item.z - state.playerZ;
+    item.hit = false;
+    item.subtype = chooseObstacleSubtype(item.lane);
+  }
+
+  function activateGymGate(index) {
+    state.gymGateActive = true;
+    state.gymGateIndex = index;
+    state.gymGateZ = .035;
+    state.gymGateLastGap = state.gymGateZ - state.playerZ;
+    for (const item of state.worldItems) {
+      if (Math.abs(item.z - state.gymGateZ) < .22) {
+        item.z = nextWorldItemZ(item);
+        item.lane = item.kind === "obstacle" ? chooseObstacleLane(item.z) : randomLane(item.z);
+        item.lastGap = item.z - state.playerZ;
+      }
+    }
+    showToast("GYM ARENA AHEAD");
+    updateHUD();
+  }
+
+  function enterGym() {
+    if (state.inGym || state.mode !== "playing") return;
+    state.inGym = true;
+    state.gymsEntered = Math.max(state.gymsEntered, state.gymGateIndex + 1);
+    state.gymGateActive = false;
+    state.gymTime = 0;
+    state.lane = 0;
+    state.visualLane = 0;
+    state.playerZ = .87;
+    state.visualZ = .87;
+    state.selected = null;
+    state.thrown = null;
+    state.throwing = false;
+    state.forwardBoost = 0;
+    state.gymCreatures = [];
+    state.gymObstacles = Array.from({ length: 6 }, () => ({}));
+    state.gymObstacles.forEach((item, index) => resetGymObstacle(item, index));
+    [0.24, 0.44, 0.64].forEach(z => spawnGymCreature(z));
+    ui.gymExitButton.classList.remove("hidden");
+    showToast(`GYM ${state.gymsEntered} OF 3 • CATCH AND DODGE`);
+    updateHUD();
+  }
+
+  function exitGym() {
+    if (!state.inGym || state.mode !== "playing") return;
+    if (state.throwing) {
+      showToast("FINISH THE THROW FIRST");
+      return;
+    }
+    state.inGym = false;
+    state.lane = 0;
+    state.visualLane = 0;
+    state.playerZ = .89;
+    state.visualZ = .89;
+    state.selected = null;
+    state.thrown = null;
+    state.gymCreatures = [];
+    state.gymObstacles = [];
+    for (const item of state.worldItems) {
+      const valid = safeLanesAtWorld(state.distance - item.z);
+      if (!valid.includes(item.lane)) item.lane = valid[Math.floor(Math.random() * valid.length)] || 0;
+    }
+    ui.gymExitButton.classList.add("hidden");
+    showToast("BACK ON THE ROUTE");
+    updateHUD();
+  }
+
   function resetGame() {
     const difficulty = DIFFICULTIES[state.difficulty];
     Object.assign(state, {
       mode: "playing", lane: 0, visualLane: 0, playerZ: .89, visualZ: .89,
       health: 3, balls: { ...difficulty.startingInventory }, ballType: "poke", caught: 0, speed: difficulty.speed,
+      roadSeed: Math.random() * 10000,
       distance: 0, routeLength: difficulty.routeLength, sightingsSpawned: 0, sightingsResolved: 0,
       finishLineActive: false, finishLineZ: .04, finishLineLastGap: null,
       finishTime: 0, finishWon: false, animTime: 0, forwardBoost: 0, selected: null, thrown: null, flash: 0, shake: 0,
       invulnerable: 0, particles: [], pointer: null, gestureHandled: false, gestureCandidate: null,
       ballGestureStart: null, ballGestureCurrent: null, ballGestureHandled: false,
-      riverFall: false, fallSide: 0, riverFallTime: 0, throwing: false, dragCurrent: null
+      riverFall: false, fallSide: 0, riverFallTime: 0, throwing: false, dragCurrent: null,
+      inGym: false, gymsEntered: 0, gymSchedule: [
+        Math.max(4, Math.round(difficulty.routeLength * .25)),
+        Math.max(8, Math.round(difficulty.routeLength * .50)),
+        Math.max(12, Math.round(difficulty.routeLength * .75))
+      ], gymGateIndex: 0, gymGateActive: false, gymGateZ: .04, gymGateLastGap: null,
+      gymCreatures: [], gymObstacles: [], gymTime: 0, fallReason: null
     });
+    ui.gymExitButton.classList.add("hidden");
     state.ballType = lowestAvailableBall();
     seedWorld();
     updateHUD();
@@ -646,6 +821,9 @@
     state.riverFall = false;
     state.fallSide = 0;
     state.riverFallTime = 0;
+    state.inGym = false;
+    state.gymGateActive = false;
+    ui.gymExitButton.classList.add("hidden");
     hideAllOverlays();
     ui.start.classList.remove("hidden");
     ui.start.setAttribute("aria-hidden", "false");
@@ -704,13 +882,23 @@
     ui.game.dataset.pickupCount = String(state.worldItems.filter(item => item.kind === "ball").length);
     ui.game.dataset.unsafeBridgeObstacles = String(state.worldItems.filter(item => item.kind === "obstacle" && isBridgeSafetyZone(item.z)).length);
     ui.game.dataset.finishLineActive = String(state.finishLineActive);
+    ui.game.dataset.laneCount = String(activeLaneCount());
+    ui.game.dataset.inGym = String(state.inGym);
+    ui.game.dataset.gymsEntered = String(state.gymsEntered);
+    ui.game.dataset.gymSchedule = state.gymSchedule.join(",");
+    ui.game.dataset.gymGateActive = String(state.gymGateActive);
+    ui.game.dataset.currentLanes = (state.inGym ? laneValues(5) : availableLanesAtWorld(state.distance - state.playerZ)).join(",");
   }
 
   function creatureRangeDistance(creature) {
     // Give the throw a short longitudinal timing window. Previously the exact
     // Euclidean distance made even nearby Pokémon fall out of range too fast.
     const forwardDistance = Math.max(0, Math.abs(state.playerZ - creature.z) - .065);
-    const laneAdjustment = state.lane === creature.side ? -.035 : state.lane === 0 ? 0 : .035;
+    if (creature.arena) {
+      const laneDistance = Math.abs(state.lane - creature.lane) * .105;
+      return Math.hypot(forwardDistance, .10 + laneDistance);
+    }
+    const laneAdjustment = -Math.max(-2, Math.min(2, state.lane * creature.side)) * .035;
     const lateralDistance = Math.max(.08, creature.fieldDistance + laneAdjustment);
     return Math.hypot(forwardDistance, lateralDistance);
   }
@@ -738,17 +926,30 @@
   function moveLane(direction) {
     if (state.mode !== "playing" || state.throwing || state.riverFall) return;
     const nextLane = state.lane + direction;
-    if (nextLane < -1 || nextLane > 1) {
+    const laneLimit = Math.floor(activeLaneCount() / 2);
+    if (nextLane < -laneLimit || nextLane > laneLimit) {
+      if (state.inGym) {
+        showToast("ARENA EDGE");
+        return;
+      }
       hitRiver("side", direction);
       return;
     }
     state.lane = nextLane;
+    if (!state.inGym && !availableLanesAtWorld(state.distance - state.playerZ).includes(state.lane)) {
+      hitRiver("gap", Math.sign(state.lane) || direction);
+      return;
+    }
     updateHUD();
   }
 
   function moveDepth(direction) {
     if (state.mode !== "playing" || state.throwing || state.riverFall) return;
     state.playerZ = Math.max(.62, Math.min(.93, state.playerZ + direction * .085));
+    if (!state.inGym && !availableLanesAtWorld(state.distance - state.playerZ).includes(state.lane)) {
+      hitRiver("gap", Math.sign(state.lane));
+      return;
+    }
     if (direction < 0) state.forwardBoost = Math.min(1.45, state.forwardBoost + .78);
     else state.forwardBoost = Math.max(0, state.forwardBoost - .25);
     updateHUD();
@@ -791,7 +992,8 @@
   function hitRiver(source = "bridge", side = 0) {
     if (state.mode !== "playing" || state.riverFall) return;
     state.riverFall = true;
-    state.fallSide = source === "side" ? side : 0;
+    state.fallSide = source === "side" || source === "gap" ? side : 0;
+    state.fallReason = source;
     state.riverFallTime = 0;
     if (state.fallSide) state.lane = state.fallSide * 1.7;
     state.flash = .5;
@@ -799,8 +1001,9 @@
     const player = trainerScreenPosition();
     burst(player.x, player.y - 20, "#8de7f1", 30);
     updateHUD();
-    showToast(source === "side" ? "YOU FELL OFF THE ROAD" : "YOU MISSED THE BRIDGE");
-    setTimeout(() => endGame(false, source === "side" ? "riverSide" : "river"), source === "side" ? 430 : 260);
+    showToast(source === "gap" ? "THE LANE ENDED" : source === "side" ? "YOU FELL OFF THE ROAD" : "YOU MISSED THE BRIDGE");
+    const reason = source === "gap" ? "roadGap" : source === "side" ? "riverSide" : "river";
+    setTimeout(() => endGame(false, reason), source === "bridge" ? 260 : 430);
   }
 
   function collectBall(item) {
@@ -863,7 +1066,8 @@
       endGame(true, "caught");
       return;
     }
-    showToast(`${target.name.toUpperCase()} CAUGHT!`);
+    const gymCleared = target.arena && state.gymCreatures.every(creature => creature === target || creature.caught);
+    showToast(gymCleared ? "GYM CLEARED • EXIT WHEN READY" : `${target.name.toUpperCase()} CAUGHT!`);
   }
 
   function endGame(won, reason = "obstacle") {
@@ -871,16 +1075,19 @@
     if (state.mode === "finishing" && reason !== "finish") return;
     const effort = !won && reason === "finish";
     state.mode = won ? "won" : effort ? "effort" : "over";
+    ui.gymExitButton.classList.add("hidden");
     const screen = won ? ui.win : effort ? ui.effort : ui.over;
     ui.finalCaught.textContent = state.caught;
     ui.effortCaught.textContent = state.caught;
     if (!won && !effort) {
       const riverLoss = reason === "river" || reason === "riverSide";
-      ui.overTitle.textContent = riverLoss ? "Swept away!" : "Nice try, Trainer.";
+      ui.overTitle.textContent = reason === "roadGap" ? "Off the trail!" : riverLoss ? "Swept away!" : "Nice try, Trainer.";
       ui.overReason.innerHTML = reason === "river"
         ? `The bridge was in the center lane. You caught <strong>${state.caught}</strong> Pokémon.`
         : reason === "riverSide"
           ? `You stepped beyond the road into the riverside. You caught <strong>${state.caught}</strong> Pokémon.`
+          : reason === "roadGap"
+            ? `That lane ended beneath you. You caught <strong>${state.caught}</strong> Pokémon.`
           : `You caught <strong>${state.caught}</strong> Pokémon this run.`;
     }
     screen.classList.remove("hidden");
@@ -926,14 +1133,68 @@
     updateHUD();
   }
 
+  function updateParticles(dt) {
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const particle = state.particles[i];
+      particle.life -= dt;
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
+      particle.vy += 180 * dt;
+      if (particle.life <= 0) state.particles.splice(i, 1);
+    }
+  }
+
+  function updateGym(dt) {
+    state.gymTime += dt;
+    state.animTime += dt;
+    state.forwardBoost = Math.max(0, state.forwardBoost - dt * 1.65);
+    state.visualLane = settleToward(state.visualLane, state.lane, 11, dt);
+    state.visualZ = settleToward(state.visualZ, state.playerZ, 11, dt);
+    state.invulnerable = Math.max(0, state.invulnerable - dt);
+    state.flash = Math.max(0, state.flash - dt);
+    state.shake = Math.max(0, state.shake - dt);
+
+    const arenaSpeed = .078 * (1 + state.forwardBoost * .25);
+    for (let index = 0; index < state.gymObstacles.length; index++) {
+      const item = state.gymObstacles[index];
+      item.z += arenaSpeed * dt;
+      const gap = item.z - state.playerZ;
+      const previousGap = item.lastGap == null ? gap : item.lastGap;
+      const crossedTrainerLine = previousGap < 0 && gap >= 0;
+      item.lastGap = gap;
+      if (!item.hit && crossedTrainerLine && item.lane === state.lane) {
+        item.hit = true;
+        hitObstacle();
+      }
+      if (item.z > 1.08) resetGymObstacle(item, index);
+    }
+
+    for (let index = state.gymCreatures.length - 1; index >= 0; index--) {
+      const creature = state.gymCreatures[index];
+      creature.bob += dt * 2.7;
+      creature.life += dt;
+      if (creature.caught) state.gymCreatures.splice(index, 1);
+    }
+
+    if (state.thrown) {
+      state.thrown.t += dt * 1.8;
+      if (state.thrown.t >= 1) finishCatch(state.thrown.target);
+    }
+    updateParticles(dt);
+    ui.game.dataset.selectedDepth = state.selected ? state.selected.z.toFixed(3) : "none";
+  }
+
   function update(dt) {
     if (state.mode === "finishing") {
       state.finishTime += dt;
-      state.animTime += dt;
-      if (state.finishTime >= 1.75) endGame(state.finishWon, "finish");
+      if (state.finishTime >= .85) endGame(state.finishWon, "finish");
       return;
     }
     if (state.mode !== "playing") return;
+    if (state.inGym) {
+      updateGym(dt);
+      return;
+    }
     state.forwardBoost = Math.max(0, state.forwardBoost - dt * 1.65);
     const travelSpeed = state.speed * (1 + state.forwardBoost);
     state.distance += travelSpeed * dt;
@@ -945,7 +1206,11 @@
     state.flash = Math.max(0, state.flash - dt);
     state.shake = Math.max(0, state.shake - dt);
 
-    if (!state.finishLineActive && state.sightingsResolved >= state.routeLength) {
+    if (!state.gymGateActive && state.gymsEntered < 3 && state.sightingsResolved >= state.gymSchedule[state.gymsEntered]) {
+      activateGymGate(state.gymsEntered);
+    }
+
+    if (!state.finishLineActive && !state.gymGateActive && state.sightingsResolved >= state.routeLength) {
       const startIsClear = !state.crossings.some(crossing => !crossing.disabled && Math.abs(crossing.z - .04) < .22);
       if (startIsClear) activateFinishLine();
     }
@@ -969,7 +1234,7 @@
           const wantsObstacle = Math.random() < difficulty.obstacleRate;
           item.kind = wantsObstacle ? "obstacle" : "ball";
         }
-        item.lane = item.kind === "obstacle" ? chooseObstacleLane(item.z) : randomLane();
+        item.lane = item.kind === "obstacle" ? chooseObstacleLane(item.z) : randomLane(item.z);
         item.subtype = item.kind === "obstacle" ? chooseObstacleSubtype(item.lane) : null;
         item.ballType = item.kind === "ball" ? chooseBallType() : null;
         item.lastGap = item.z - state.playerZ;
@@ -1019,6 +1284,11 @@
       }
     }
 
+    if (!availableLanesAtWorld(state.distance - state.playerZ).includes(state.lane)) {
+      hitRiver("gap", Math.sign(state.lane));
+      return;
+    }
+
     for (const creature of state.creatures) {
       creature.bob += dt * 2.4;
       creature.z += travelSpeed * dt;
@@ -1056,14 +1326,18 @@
       }
     }
 
-    for (let i = state.particles.length - 1; i >= 0; i--) {
-      const p = state.particles[i];
-      p.life -= dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vy += 180 * dt;
-      if (p.life <= 0) state.particles.splice(i, 1);
+    if (state.gymGateActive) {
+      state.gymGateZ += travelSpeed * dt;
+      const gymGap = state.gymGateZ - state.playerZ;
+      const previousGymGap = state.gymGateLastGap == null ? gymGap : state.gymGateLastGap;
+      state.gymGateLastGap = gymGap;
+      if (previousGymGap < 0 && gymGap >= 0) {
+        enterGym();
+        return;
+      }
     }
+
+    updateParticles(dt);
   }
 
   function roundedRect(x, y, w, h, r) {
@@ -1205,60 +1479,268 @@
   }
 
   function drawRoad() {
-    const horizonY = height * .335;
+    const count = DIFFICULTIES[state.difficulty].laneCount || 3;
+    const lanes = laneValues(count);
+    const slices = 72;
     ctx.save();
-    ctx.filter = `blur(${Math.max(3, Math.min(9, width * .006))}px)`;
-    ctx.fillStyle = "rgba(184,153,94,.38)";
-    ctx.beginPath();
-    ctx.moveTo(width * .424, horizonY - 2);
-    ctx.lineTo(width * .576, horizonY - 2);
-    ctx.lineTo(width * .955, height * 1.08);
-    ctx.lineTo(width * .045, height * 1.08);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    ctx.lineJoin = "round";
 
-    const roadFill = ctx.createLinearGradient(0, horizonY, 0, height);
-    roadFill.addColorStop(0, "rgba(224,214,171,.78)");
-    roadFill.addColorStop(.5, "rgba(198,171,112,.86)");
-    roadFill.addColorStop(1, "rgba(160,124,75,.92)");
-    ctx.fillStyle = roadFill;
-    ctx.beginPath();
-    ctx.moveTo(width * .43, horizonY);
-    ctx.lineTo(width * .57, horizonY);
-    ctx.lineTo(width * .94, height * 1.08);
-    ctx.lineTo(width * .06, height * 1.08);
-    ctx.closePath();
-    ctx.fill();
+    for (let index = 0; index < slices; index++) {
+      const z0 = index / slices;
+      const z1 = (index + 1.15) / slices;
+      const midZ = (z0 + z1) / 2;
+      const available = availableLanesAtWorld(state.distance - midZ);
+      const road0 = roadGeometry(z0);
+      const road1 = roadGeometry(z1);
+      const cell0 = road0.half * 2 / count;
+      const cell1 = road1.half * 2 / count;
+      const warmth = Math.round(218 - midZ * 58);
+      const green = Math.round(207 - midZ * 80);
+      const blue = Math.round(164 - midZ * 83);
 
-    ctx.save();
-    ctx.globalAlpha = .13;
-    ctx.strokeStyle = "#795d42";
-    for (let i = 0; i < 14; i++) {
-      const z = ((i / 14 + state.distance * .45) % 1);
-      const a = roadGeometry(z);
-      ctx.lineWidth = 1 + z * 3;
-      ctx.beginPath();
-      ctx.moveTo(a.left + a.half * .12, a.y);
-      ctx.lineTo(a.right - a.half * .12, a.y);
-      ctx.stroke();
+      for (const lane of lanes.filter(candidate => !available.includes(candidate))) {
+        const center0 = width / 2 + lane * cell0;
+        const center1 = width / 2 + lane * cell1;
+        ctx.fillStyle = `rgba(${Math.round(86 - midZ * 25)},${Math.round(138 - midZ * 35)},${Math.round(77 - midZ * 19)},.94)`;
+        ctx.beginPath();
+        ctx.moveTo(center0 - cell0 * .49, road0.y);
+        ctx.lineTo(center0 + cell0 * .49, road0.y);
+        ctx.lineTo(center1 + cell1 * .49, road1.y + 1);
+        ctx.lineTo(center1 - cell1 * .49, road1.y + 1);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      for (const lane of available) {
+        const center0 = width / 2 + lane * cell0;
+        const center1 = width / 2 + lane * cell1;
+        ctx.fillStyle = `rgba(${warmth},${green},${blue},${.79 + midZ * .16})`;
+        ctx.beginPath();
+        ctx.moveTo(center0 - cell0 * .505, road0.y);
+        ctx.lineTo(center0 + cell0 * .505, road0.y);
+        ctx.lineTo(center1 + cell1 * .505, road1.y + 1);
+        ctx.lineTo(center1 - cell1 * .505, road1.y + 1);
+        ctx.closePath();
+        ctx.fill();
+
+        const laneIndex = lanes.indexOf(lane);
+        const leftNeighbor = lanes[laneIndex - 1];
+        const rightNeighbor = lanes[laneIndex + 1];
+        ctx.strokeStyle = "rgba(100,83,58,.30)";
+        ctx.lineWidth = 1 + midZ * 2.5;
+        if (leftNeighbor !== undefined && !available.includes(leftNeighbor)) {
+          ctx.beginPath(); ctx.moveTo(center0 - cell0 / 2, road0.y); ctx.lineTo(center1 - cell1 / 2, road1.y); ctx.stroke();
+        }
+        if (rightNeighbor !== undefined && !available.includes(rightNeighbor)) {
+          ctx.beginPath(); ctx.moveTo(center0 + cell0 / 2, road0.y); ctx.lineTo(center1 + cell1 / 2, road1.y); ctx.stroke();
+        }
+      }
+
+      const dashPhase = Math.abs(Math.floor((state.distance - midZ) / .052));
+      if (dashPhase % 2 === 0) {
+        ctx.strokeStyle = "rgba(244,235,203,.48)";
+        ctx.lineWidth = 1 + midZ * 4;
+        for (let laneIndex = 0; laneIndex < lanes.length - 1; laneIndex++) {
+          const leftLane = lanes[laneIndex];
+          const rightLane = lanes[laneIndex + 1];
+          if (!available.includes(leftLane) || !available.includes(rightLane)) continue;
+          const boundary0 = width / 2 + (leftLane + .5) * cell0;
+          const boundary1 = width / 2 + (leftLane + .5) * cell1;
+          ctx.beginPath(); ctx.moveTo(boundary0, road0.y); ctx.lineTo(boundary1, road1.y); ctx.stroke();
+        }
+      }
+    }
+
+    ctx.globalAlpha = .12;
+    ctx.strokeStyle = "#70533b";
+    for (let index = 0; index < 13; index++) {
+      const z = (index / 13 + state.distance * .45) % 1;
+      const road = roadGeometry(z);
+      const available = availableLanesAtWorld(state.distance - z);
+      for (const lane of available) {
+        const cell = road.half * 2 / count;
+        const center = width / 2 + lane * cell;
+        ctx.lineWidth = 1 + z * 2;
+        ctx.beginPath(); ctx.moveTo(center - cell * .34, road.y); ctx.lineTo(center + cell * .34, road.y); ctx.stroke();
+      }
     }
     ctx.restore();
+  }
 
-    ctx.strokeStyle = "rgba(236,224,190,.55)";
-    ctx.lineCap = "round";
-    for (const divider of [-.28, .28]) {
-      for (let i = 0; i < 11; i++) {
-        const z1 = ((i / 11 + state.distance * .7) % 1);
-        const z2 = Math.min(1, z1 + .045);
-        const a = roadGeometry(z1);
-        const b = roadGeometry(z2);
-        ctx.lineWidth = 1 + z1 * 5;
-        ctx.beginPath();
-        ctx.moveTo(width / 2 + a.half * divider, a.y);
-        ctx.lineTo(width / 2 + b.half * divider, b.y);
-        ctx.stroke();
-      }
+  function drawGymGate() {
+    if (!state.gymGateActive || state.gymGateZ < .01 || state.gymGateZ > 1.06) return;
+    const road = roadGeometry(state.gymGateZ);
+    const span = road.half * .94;
+    const pillarHeight = 34 + road.e * 170;
+    const pillarWidth = 5 + road.e * 17;
+    const top = road.y - pillarHeight;
+    const glow = ctx.createRadialGradient(width / 2, road.y - pillarHeight * .42, 2, width / 2, road.y - pillarHeight * .42, span);
+    glow.addColorStop(0, "rgba(102,224,255,.34)");
+    glow.addColorStop(1, "rgba(102,224,255,0)");
+    ctx.save();
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.ellipse(width / 2, road.y - pillarHeight * .38, span, pillarHeight * .68, 0, 0, TAU); ctx.fill();
+
+    const pillar = ctx.createLinearGradient(0, top, 0, road.y);
+    pillar.addColorStop(0, "#f7f5ee");
+    pillar.addColorStop(.46, "#5b86a7");
+    pillar.addColorStop(1, "#173f60");
+    ctx.fillStyle = pillar;
+    roundedRect(width / 2 - span - pillarWidth / 2, top, pillarWidth, pillarHeight, pillarWidth / 2); ctx.fill();
+    roundedRect(width / 2 + span - pillarWidth / 2, top, pillarWidth, pillarHeight, pillarWidth / 2); ctx.fill();
+
+    const bannerHeight = 13 + road.e * 34;
+    ctx.fillStyle = "#173f60";
+    roundedRect(width / 2 - span, top - bannerHeight * .15, span * 2, bannerHeight, Math.max(3, bannerHeight * .3)); ctx.fill();
+    ctx.strokeStyle = "rgba(105,226,255,.82)";
+    ctx.lineWidth = Math.max(1.5, road.e * 5);
+    ctx.stroke();
+    ctx.fillStyle = "white";
+    ctx.font = `900 ${Math.max(8, 9 + road.e * 21)}px Nunito, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`GYM ${state.gymGateIndex + 1}`, width / 2, top + bannerHeight * .36);
+    ctx.restore();
+  }
+
+  function drawArenaBackground() {
+    const horizon = height * .30;
+    const sky = ctx.createLinearGradient(0, 0, 0, height);
+    sky.addColorStop(0, "#102f58");
+    sky.addColorStop(.30, "#235b83");
+    sky.addColorStop(.305, "#dcebf0");
+    sky.addColorStop(1, "#2e6f79");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "rgba(9,31,58,.88)";
+    ctx.beginPath();
+    ctx.moveTo(0, horizon * .72);
+    ctx.quadraticCurveTo(width / 2, horizon * 1.48, width, horizon * .72);
+    ctx.lineTo(width, horizon * 1.22);
+    ctx.quadraticCurveTo(width / 2, horizon * 1.72, 0, horizon * 1.22);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(240,248,250,.88)";
+    for (let index = 0; index < 9; index++) {
+      const x = width * (.08 + index * .105);
+      ctx.beginPath(); ctx.arc(x, horizon * .93 + Math.sin(index) * 5, Math.max(2, width * .004), 0, TAU); ctx.fill();
+    }
+
+    const floor = ctx.createLinearGradient(0, horizon, 0, height);
+    floor.addColorStop(0, "#83b9bb");
+    floor.addColorStop(.58, "#4d9498");
+    floor.addColorStop(1, "#286c73");
+    ctx.fillStyle = floor;
+    ctx.beginPath();
+    ctx.moveTo(width * .39, horizon);
+    ctx.lineTo(width * .61, horizon);
+    ctx.lineTo(width * 1.02, height);
+    ctx.lineTo(-width * .02, height);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(222,249,244,.42)";
+    ctx.lineWidth = 2;
+    for (let lane = -2; lane <= 2; lane++) {
+      const far = roadGeometry(.01);
+      const near = roadGeometry(1);
+      const cellFar = far.half * 2 / 5;
+      const cellNear = near.half * 2 / 5;
+      const boundary = lane - .5;
+      if (lane === -2) continue;
+      ctx.beginPath();
+      ctx.moveTo(width / 2 + boundary * cellFar, far.y);
+      ctx.lineTo(width / 2 + boundary * cellNear, near.y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(220,249,244,.22)";
+    for (let index = 1; index < 8; index++) {
+      const z = index / 8;
+      const road = roadGeometry(z);
+      ctx.lineWidth = 1 + z * 2;
+      ctx.beginPath(); ctx.moveTo(road.left, road.y); ctx.lineTo(road.right, road.y); ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.translate(width / 2, height * .17);
+    ctx.fillStyle = "rgba(7,25,49,.78)";
+    roundedRect(-76, -24, 152, 48, 12); ctx.fill();
+    ctx.strokeStyle = "rgba(104,228,255,.7)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "900 12px Nunito, sans-serif";
+    ctx.fillText(`GYM ${state.gymsEntered} / 3`, 0, -5);
+    ctx.fillStyle = "#8eeaff";
+    ctx.font = "900 8px Nunito, sans-serif";
+    ctx.fillText("CATCH • DODGE • EXIT ANY TIME", 0, 10);
+    ctx.restore();
+  }
+
+  function drawGymCreature(creature) {
+    const image = getPokemonImage(creature);
+    if (!image.complete || !image.naturalWidth) {
+      creature.screenR = 0;
+      return;
+    }
+    const road = roadGeometry(creature.z);
+    const heightScale = Math.max(.68, Math.min(1.75, Math.pow(creature.heightM / .7, .62)));
+    const scale = (.16 + road.e * .72) * heightScale;
+    const hover = 22 + road.e * 42 + Math.sin(creature.bob) * (5 + road.e * 6);
+    const x = laneX(creature.lane, creature.z) + Math.sin(creature.bob * .72) * (3 + road.e * 6);
+    const y = road.y - hover;
+    creature.screenX = x;
+    creature.screenY = y - 45 * scale;
+    creature.screenR = Math.max(48, 55 * scale + 22);
+
+    ctx.save();
+    ctx.globalAlpha = .24;
+    ctx.fillStyle = "#0a4054";
+    ctx.beginPath(); ctx.ellipse(x, road.y + 2, 34 * scale, 9 * scale, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    const selected = state.selected === creature;
+    ctx.strokeStyle = selected ? "#6ef08a" : "rgba(235,252,255,.78)";
+    ctx.lineWidth = (selected ? 5 : 2.5) / scale;
+    ctx.setLineDash(selected ? [] : [8 / scale, 7 / scale]);
+    ctx.beginPath(); ctx.arc(0, -47, 53 + Math.sin(creature.bob * 1.4) * 3, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    if (selected) {
+      ctx.fillStyle = "rgba(95,235,134,.16)";
+      ctx.beginPath(); ctx.arc(0, -47, 54, 0, TAU); ctx.fill();
+    }
+    ctx.shadowColor = creature.legendary ? "rgba(255,213,80,.62)" : "rgba(8,32,55,.38)";
+    ctx.shadowBlur = creature.legendary ? 20 : 11;
+    ctx.drawImage(image, -57, -107, 114, 114);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = `900 ${Math.max(9, Math.min(14, 8 + scale * 5))}px Nunito, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const label = `${creature.legendary ? "★ " : ""}${creature.name}`;
+    const labelWidth = ctx.measureText(label).width + 18;
+    ctx.fillStyle = selected ? "rgba(25,132,72,.92)" : "rgba(9,38,65,.82)";
+    roundedRect(x - labelWidth / 2, y + 1, labelWidth, 23, 12); ctx.fill();
+    ctx.fillStyle = "white";
+    ctx.fillText(label, x, y + 13);
+    ctx.restore();
+  }
+
+  function drawGymObstacles() {
+    const sorted = [...state.gymObstacles].sort((a, b) => a.z - b.z);
+    for (const item of sorted) {
+      if (item.hit || item.z < .01 || item.z > 1.08) continue;
+      const road = roadGeometry(item.z);
+      drawObstacle(item, laneX(item.lane, item.z), road.y, .12 + road.e * 1.14);
     }
   }
 
@@ -1764,21 +2246,16 @@
   }
 
   function drawFinishTrainer(player, scale) {
-    const turn = Math.min(1, state.finishTime / .85);
-    const frontFacing = turn >= .5;
-    const image = frontFacing ? trainerFrontPose : trainerBackPose;
-    const squeeze = Math.max(.045, Math.abs(Math.cos(turn * Math.PI)));
+    const image = trainerBackPose;
     const imageHeight = 194 * scale;
     const imageWidth = imageHeight * (image.naturalWidth / image.naturalHeight);
-    const settledLift = state.finishTime > .9 ? Math.sin((state.finishTime - .9) * 4.2) * 1.2 * scale : 0;
 
     ctx.save();
-    ctx.translate(player.x, player.y - settledLift);
+    ctx.translate(player.x, player.y);
     ctx.fillStyle = "rgba(33,65,48,.24)";
     ctx.beginPath();
-    ctx.ellipse(0, 4 + settledLift, imageWidth * .3, 10 * scale, 0, 0, TAU);
+    ctx.ellipse(0, 4, imageWidth * .3, 10 * scale, 0, 0, TAU);
     ctx.fill();
-    ctx.scale(squeeze, 1);
     ctx.shadowColor = "rgba(12,45,54,.34)";
     ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 6;
@@ -1795,7 +2272,7 @@
     const fallDrop = fallProgress * 22;
     const depthScale = .62 + player.road.e * .48;
     const s = Math.max(.66, Math.min(1.12, height / 760)) * depthScale;
-    if (state.mode === "finishing" && trainerBackPose.complete && trainerBackPose.naturalWidth && trainerFrontPose.complete && trainerFrontPose.naturalWidth) {
+    if (state.mode === "finishing" && trainerBackPose.complete && trainerBackPose.naturalWidth) {
       drawFinishTrainer(player, s);
       return;
     }
@@ -1891,10 +2368,17 @@
   function render() {
     ctx.save();
     if (state.shake > 0) ctx.translate(randomBetween(-8,8)*state.shake/.38, randomBetween(-5,5)*state.shake/.38);
-    drawBackground();
-    drawFinishLine();
-    [...state.creatures].sort((a,b)=>a.z-b.z).forEach(drawCreature);
-    drawWorldItems();
+    if (state.inGym) {
+      drawArenaBackground();
+      [...state.gymCreatures].sort((a,b)=>a.z-b.z).forEach(drawGymCreature);
+      drawGymObstacles();
+    } else {
+      drawBackground();
+      drawFinishLine();
+      drawGymGate();
+      [...state.creatures].sort((a,b)=>a.z-b.z).forEach(drawCreature);
+      drawWorldItems();
+    }
     drawTrainer();
     drawThrow();
     drawParticles();
@@ -1916,7 +2400,8 @@
   }
 
   function findCreatureAt(point) {
-    return [...state.creatures].reverse().find(c => !c.caught && c.z > .10 && c.z < .99 && Math.hypot(point.x-c.screenX,point.y-c.screenY) < c.screenR);
+    const creatures = state.inGym ? state.gymCreatures : state.creatures;
+    return [...creatures].reverse().find(c => !c.caught && c.z > .10 && c.z < .99 && Math.hypot(point.x-c.screenX,point.y-c.screenY) < c.screenR);
   }
 
   canvas.addEventListener("pointerdown", event => {
@@ -1924,7 +2409,7 @@
     event.preventDefault();
     const p = canvasPoint(event);
     let creature = findCreatureAt(p);
-    if (!creature && (p.x < width * .38 || p.x > width * .62)) {
+    if (!state.inGym && !creature && (p.x < width * .38 || p.x > width * .62)) {
       const side = p.x < width / 2 ? -1 : 1;
       creature = [...state.creatures]
         .filter(candidate => !candidate.caught && candidate.side === side && candidate.z > .10 && candidate.z < .99)
@@ -2034,7 +2519,8 @@
     if (event.code === "ArrowDown" || event.code === "KeyS") moveDepth(1);
     if (event.code === "Space") {
       if (!state.selected) {
-        const nearest = [...state.creatures].filter(c=>c.z>.2&&c.z<.9).sort((a,b)=>b.z-a.z)[0];
+        const activeCreatures = state.inGym ? state.gymCreatures : state.creatures;
+        const nearest = [...activeCreatures].filter(c=>c.z>.2&&c.z<.9).sort((a,b)=>b.z-a.z)[0];
         if (nearest) selectCreature(nearest);
       } else throwAtSelected();
     }
@@ -2056,6 +2542,7 @@
   });
   ui.resumeButton.addEventListener("click", () => togglePause(true));
   ui.pauseButton.addEventListener("click", () => togglePause());
+  ui.gymExitButton.addEventListener("click", exitGym);
   ui.menuButtons.forEach(button => button.addEventListener("click", showMenu));
   document.querySelectorAll(".restart-button").forEach(button => button.addEventListener("click", resetGame));
   window.addEventListener("resize", resize);
