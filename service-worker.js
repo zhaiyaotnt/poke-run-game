@@ -1,4 +1,4 @@
-const CACHE_NAME = "poke-run-variable-lanes-gym-v23";
+const CACHE_NAME = "poke-run-open-arena-v24";
 
 const CORE_ASSETS = [
   "./",
