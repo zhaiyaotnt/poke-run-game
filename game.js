@@ -51,6 +51,9 @@
   };
 
   const TAU = Math.PI * 2;
+  const WIN_TARGET = 15;
+  const GYM_OBSTACLE_SPEED = .092;
+  const GYM_POKEMON_SPEED = .052;
   const BALL_ORDER = ["poke", "great", "ultra", "master"];
   const BALL_TYPES = {
     poke: { label: "POKÉ", fullLabel: "POKÉ BALL", range: .27, pickupColor: "#ef5050" },
@@ -716,7 +719,7 @@
     });
   }
 
-  function resetGymObstacle(item, index = 0) {
+  function resetGymObstacle(item, index = 0, firstWave = false) {
     item.kind = "obstacle";
     item.arenaX = randomBetween(-.78, .78);
     item.flightPhase = Math.random() * TAU;
@@ -724,7 +727,11 @@
     item.driftSpeed = randomBetween(.65, 1.18);
     item.hoverPhase = Math.random() * TAU;
     item.spin = Math.random() * TAU;
-    item.z = -.02 - index * .16 - randomBetween(.02, .12);
+    // The opening hazard wave is already in flight when the trainer enters.
+    // Later waves loop in from the back of the arena.
+    item.z = firstWave
+      ? .27 + index * .085 + randomBetween(-.018, .018)
+      : -.04 - index * .12 - randomBetween(.01, .08);
     item.lastGap = item.z - state.playerZ;
     item.hit = false;
     item.subtype = chooseObstacleSubtype(item.arenaX);
@@ -764,10 +771,11 @@
     state.forwardBoost = 0;
     state.gymCreatures = [];
     state.gymObstacles = Array.from({ length: 6 }, () => ({}));
-    state.gymObstacles.forEach((item, index) => resetGymObstacle(item, index));
-    [0.24, 0.44, 0.64].forEach(z => spawnGymCreature(z));
+    state.gymObstacles.forEach((item, index) => resetGymObstacle(item, index, true));
+    // Pokémon follow the first hazard wave and drift forward more slowly.
+    [0.07, 0.14, 0.21].forEach(z => spawnGymCreature(z));
     ui.gymExitButton.classList.remove("hidden");
-    showToast("ARENA • CATCH AND DODGE");
+    showToast("GYM • CATCH AND DODGE");
     updateHUD();
   }
 
@@ -821,7 +829,7 @@
     seedWorld();
     updateHUD();
     hideAllOverlays();
-    showToast(`${difficulty.label} MODE • CATCH 10`);
+    showToast(`${difficulty.label} MODE • CATCH ${WIN_TARGET}`);
   }
 
   function hideAllOverlays() {
@@ -869,7 +877,7 @@
     }
     ui.ballInventory.setAttribute("aria-label", `${ball.fullLabel}: ${ballCount}`);
     ui.throwPad.setAttribute("aria-label", `Tap to switch ball type; swipe upward to throw ${ball.fullLabel}`);
-    ui.progress.style.width = `${Math.min(100, state.caught * 10)}%`;
+    ui.progress.style.width = `${Math.min(100, state.caught / WIN_TARGET * 100)}%`;
     ui.hearts.forEach((heart, index) => heart.classList.toggle("lost", index >= state.health));
     const distance = state.selected ? creatureRangeDistance(state.selected) : Infinity;
     const inRange = !!state.selected && distance <= ball.range;
@@ -1043,7 +1051,7 @@
 
   function selectCreature(creature) {
     if (state.mode !== "playing" || creature.caught) return;
-    if (state.caught >= 10) {
+    if (state.caught >= WIN_TARGET) {
       showToast("TEAM COMPLETE • REACH THE FINISH");
       return;
     }
@@ -1081,19 +1089,19 @@
   function finishCatch(target) {
     target.caught = true;
     burst(target.screenX, target.screenY, "#ffd52d", 24);
-    state.caught = Math.min(10, state.caught + 1);
+    state.caught = Math.min(WIN_TARGET, state.caught + 1);
     state.selected = null;
     state.thrown = null;
     state.throwing = false;
     state.ballType = lowestAvailableBall();
     updateHUD();
-    if (state.caught >= 10) {
+    if (state.caught >= WIN_TARGET) {
       showToast("TEAM COMPLETE!");
       endGame(true, "caught");
       return;
     }
     const gymCleared = target.arena && state.gymCreatures.every(creature => creature === target || creature.caught);
-    showToast(gymCleared ? "ARENA CLEARED • EXIT WHEN READY" : `${target.name.toUpperCase()} CAUGHT!`);
+    showToast(gymCleared ? "GYM CLEARED • EXIT WHEN READY" : `${target.name.toUpperCase()} CAUGHT!`);
   }
 
   function endGame(won, reason = "obstacle") {
@@ -1151,7 +1159,7 @@
     if (state.mode !== "playing") return;
     state.mode = "finishing";
     state.finishTime = 0;
-    state.finishWon = state.caught >= 10;
+    state.finishWon = state.caught >= WIN_TARGET;
     state.selected = null;
     state.thrown = null;
     state.throwing = false;
@@ -1181,10 +1189,11 @@
     state.flash = Math.max(0, state.flash - dt);
     state.shake = Math.max(0, state.shake - dt);
 
-    const arenaSpeed = .078 * (1 + state.forwardBoost * .25);
+    const obstacleSpeed = GYM_OBSTACLE_SPEED * (1 + state.forwardBoost * .25);
+    const pokemonSpeed = GYM_POKEMON_SPEED * (1 + state.forwardBoost * .12);
     for (let index = 0; index < state.gymObstacles.length; index++) {
       const item = state.gymObstacles[index];
-      item.z += arenaSpeed * dt;
+      item.z += obstacleSpeed * dt;
       item.spin += dt * 2.4;
       const gap = item.z - state.playerZ;
       const previousGap = item.lastGap == null ? gap : item.lastGap;
@@ -1199,9 +1208,20 @@
 
     for (let index = state.gymCreatures.length - 1; index >= 0; index--) {
       const creature = state.gymCreatures[index];
+      creature.z += pokemonSpeed * dt;
       creature.bob += dt * 2.7;
       creature.life += dt;
-      if (creature.caught) state.gymCreatures.splice(index, 1);
+      if (creature.caught) {
+        state.gymCreatures.splice(index, 1);
+        continue;
+      }
+      if (creature.z > 1.08) {
+        creature.z = randomBetween(.045, .11);
+        creature.arenaX = randomBetween(-.72, .72);
+        creature.flightPhase = Math.random() * TAU;
+        creature.bob = Math.random() * TAU;
+        if (state.selected === creature) state.selected = null;
+      }
     }
 
     if (state.thrown) {
@@ -1600,13 +1620,20 @@
     if (!state.gymGateActive || state.gymGateZ < .01 || state.gymGateZ > 1.06) return;
     const road = roadGeometry(state.gymGateZ);
     const span = road.half * .98;
-    const stadiumHeight = 38 + road.e * 176;
+    const stadiumHeight = 56 + road.e * 238;
     const top = road.y - stadiumHeight;
     const count = DIFFICULTIES[state.difficulty].laneCount || 3;
     const laneWidth = road.half * 2 / count;
     const doorWidth = Math.max(12, laneWidth * .68);
     const doorHeight = Math.max(18, stadiumHeight * .48);
     ctx.save();
+    const stadiumAura = ctx.createRadialGradient(width / 2, top + stadiumHeight * .48, span * .16, width / 2, top + stadiumHeight * .48, span * 1.35);
+    stadiumAura.addColorStop(0, "rgba(109,235,255,.30)");
+    stadiumAura.addColorStop(.48, "rgba(141,105,255,.17)");
+    stadiumAura.addColorStop(1, "rgba(57,221,255,0)");
+    ctx.fillStyle = stadiumAura;
+    ctx.beginPath(); ctx.ellipse(width / 2, top + stadiumHeight * .48, span * 1.38, stadiumHeight * .72, 0, 0, TAU); ctx.fill();
+
     ctx.fillStyle = "rgba(20,48,62,.28)";
     ctx.beginPath(); ctx.ellipse(width / 2, road.y + 5, span * 1.08, 8 + road.e * 18, 0, 0, TAU); ctx.fill();
 
@@ -1626,16 +1653,22 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(190,236,239,.62)";
+    ctx.strokeStyle = "rgba(164,244,255,.88)";
     ctx.lineWidth = Math.max(1, road.e * 3.5);
+    ctx.shadowColor = "rgba(87,225,255,.84)";
+    ctx.shadowBlur = Math.max(7, road.e * 18);
     for (const tier of [.37, .50, .63]) {
       ctx.beginPath();
       ctx.ellipse(width / 2, top + stadiumHeight * tier, span * (1 - tier * .10), stadiumHeight * .12, 0, 0, Math.PI);
       ctx.stroke();
     }
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
 
     const doorGlow = ctx.createRadialGradient(width / 2, road.y - doorHeight * .35, 1, width / 2, road.y - doorHeight * .35, doorWidth * 1.2);
-    doorGlow.addColorStop(0, "rgba(109,235,255,.72)");
+    doorGlow.addColorStop(0, "rgba(188,252,255,.96)");
+    doorGlow.addColorStop(.34, "rgba(80,222,255,.70)");
+    doorGlow.addColorStop(.70, "rgba(144,94,255,.32)");
     doorGlow.addColorStop(1, "rgba(109,235,255,0)");
     ctx.fillStyle = doorGlow;
     ctx.beginPath(); ctx.ellipse(width / 2, road.y - doorHeight * .35, doorWidth * 1.35, doorHeight * .8, 0, 0, TAU); ctx.fill();
@@ -1650,6 +1683,8 @@
     const emblemY = top + stadiumHeight * .32;
     const emblemR = 5 + road.e * 15;
     ctx.fillStyle = "#f7f7ee";
+    ctx.shadowColor = "rgba(119,236,255,.92)";
+    ctx.shadowBlur = Math.max(8, emblemR * 1.4);
     ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR, 0, TAU); ctx.fill();
     ctx.fillStyle = "#e95757";
     ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR * .84, Math.PI, TAU); ctx.fill();
@@ -1660,33 +1695,44 @@
     ctx.strokeStyle = "#173f60";
     ctx.lineWidth = Math.max(1, emblemR * .12);
     ctx.stroke();
+    ctx.shadowColor = "transparent";
     ctx.restore();
   }
 
   function drawArenaBackground() {
-    const horizon = height * .30;
+    const horizon = height * .34;
     const sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, "#102f58");
-    sky.addColorStop(.30, "#235b83");
-    sky.addColorStop(.305, "#dcebf0");
-    sky.addColorStop(1, "#2e6f79");
+    sky.addColorStop(0, "#09162f");
+    sky.addColorStop(.34, "#213d70");
+    sky.addColorStop(.345, "#d9f5fb");
+    sky.addColorStop(1, "#245a73");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
     ctx.fillStyle = "rgba(9,31,58,.88)";
     ctx.beginPath();
-    ctx.moveTo(0, horizon * .72);
-    ctx.quadraticCurveTo(width / 2, horizon * 1.48, width, horizon * .72);
-    ctx.lineTo(width, horizon * 1.22);
-    ctx.quadraticCurveTo(width / 2, horizon * 1.72, 0, horizon * 1.22);
+    ctx.moveTo(0, horizon * .40);
+    ctx.quadraticCurveTo(width / 2, horizon * 1.34, width, horizon * .40);
+    ctx.lineTo(width, horizon * 1.28);
+    ctx.quadraticCurveTo(width / 2, horizon * 1.82, 0, horizon * 1.28);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = "rgba(240,248,250,.88)";
     for (let index = 0; index < 9; index++) {
       const x = width * (.08 + index * .105);
-      ctx.beginPath(); ctx.arc(x, horizon * .93 + Math.sin(index) * 5, Math.max(2, width * .004), 0, TAU); ctx.fill();
+      ctx.shadowColor = index % 2 ? "#7ee8ff" : "#c59aff";
+      ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(x, horizon * .82 + Math.sin(index) * 7, Math.max(2.5, width * .005), 0, TAU); ctx.fill();
     }
+    ctx.shadowColor = "transparent";
+
+    const interiorGlow = ctx.createRadialGradient(width / 2, horizon * .78, 4, width / 2, horizon * .78, width * .62);
+    interiorGlow.addColorStop(0, "rgba(141,240,255,.34)");
+    interiorGlow.addColorStop(.48, "rgba(139,103,255,.16)");
+    interiorGlow.addColorStop(1, "rgba(8,20,47,0)");
+    ctx.fillStyle = interiorGlow;
+    ctx.fillRect(0, 0, width, height * .72);
 
     const floor = ctx.createLinearGradient(0, horizon, 0, height);
     floor.addColorStop(0, "#83b9bb");
@@ -1704,12 +1750,16 @@
     const arenaY = height * .69;
     const arenaRadiusX = Math.min(width * .39, height * .34);
     const arenaRadiusY = arenaRadiusX * .30;
-    ctx.strokeStyle = "rgba(220,249,244,.42)";
+    ctx.strokeStyle = "rgba(210,253,255,.78)";
     ctx.lineWidth = Math.max(2, width * .004);
+    ctx.shadowColor = "rgba(82,232,255,.84)";
+    ctx.shadowBlur = Math.max(10, width * .025);
     ctx.beginPath(); ctx.ellipse(width / 2, arenaY, arenaRadiusX, arenaRadiusY, 0, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = "rgba(98,218,230,.28)";
+    ctx.strokeStyle = "rgba(169,116,255,.50)";
     ctx.lineWidth = Math.max(8, width * .018);
     ctx.beginPath(); ctx.ellipse(width / 2, arenaY, arenaRadiusX * .78, arenaRadiusY * .78, 0, 0, TAU); ctx.stroke();
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
 
     const emblemRadius = Math.min(width, height) * .055;
     ctx.save();

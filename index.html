@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=24" />
+    <link rel="stylesheet" href="styles.css?v=25" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -29,7 +29,7 @@
         <div class="progress-group">
           <div class="progress-copy">
             <span>TEAM</span>
-            <strong><span id="caughtCount">0</span>/10</strong>
+            <strong><span id="caughtCount">0</span>/15</strong>
           </div>
           <div class="progress-track" aria-label="Pokémon caught progress">
             <span id="progressFill"></span>
@@ -51,8 +51,8 @@
         <span></span><span></span>
       </button>
 
-      <button id="gymExitButton" class="gym-exit-button hidden" type="button" aria-label="Exit the arena and return to the route">
-        <strong>EXIT ARENA</strong><small>RETURN TO ROUTE</small>
+      <button id="gymExitButton" class="gym-exit-button hidden" type="button" aria-label="Exit the gym and return to the route">
+        <strong>EXIT GYM</strong><small>RETURN TO ROUTE</small>
       </button>
 
       <div id="targetChip" class="target-chip" aria-live="polite">
@@ -125,7 +125,7 @@
         <div class="result-orb win-orb">★</div>
         <div class="eyebrow">TEAM COMPLETE</div>
         <h2>Dream team!</h2>
-        <p>You caught all 10 Pokémon. What a run!</p>
+        <p>You caught all 15 Pokémon. What a run!</p>
         <div class="result-actions">
           <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
           <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
@@ -136,7 +136,7 @@
         <div class="result-orb effort-orb">✓</div>
         <div class="eyebrow">FINISH LINE</div>
         <h2>Good effort!</h2>
-        <p>You reached the finish with <strong id="effortCaught">0</strong> Pokémon. Catch 10 to complete the team.</p>
+        <p>You reached the finish with <strong id="effortCaught">0</strong> Pokémon. Catch 15 to complete the team.</p>
         <div class="result-actions">
           <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
           <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
@@ -157,7 +157,7 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=24"></script>
+    <script src="game.js?v=25"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {
