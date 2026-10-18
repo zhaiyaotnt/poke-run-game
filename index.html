@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#123f4d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Poké Run" />
+    <title>Poké Run</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icons/poke-run-180.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=22" />
+  </head>
+  <body>
+    <main id="game" class="game" aria-label="Poké Run game">
+      <canvas id="gameCanvas" aria-label="Three lane Pokémon runner"></canvas>
+
+      <header class="hud" aria-label="Game status">
+        <div class="brand-lockup" aria-label="Poké Run, 9 generations">
+          <span class="brand">POKÉ RUN</span>
+          <span class="route">9 GENERATIONS</span>
+        </div>
+
+        <div class="progress-group">
+          <div class="progress-copy">
+            <span>TEAM</span>
+            <strong><span id="caughtCount">0</span>/10</strong>
+          </div>
+          <div class="progress-track" aria-label="Pokémon caught progress">
+            <span id="progressFill"></span>
+          </div>
+        </div>
+
+        <div class="resources">
+          <div id="hearts" class="hearts" aria-label="Three health points">
+            <span>♥</span><span>♥</span><span>♥</span>
+          </div>
+          <div id="ballInventory" class="ball-count" aria-label="Selected ball inventory" aria-live="polite">
+            <span id="selectedBallIcon" class="mini-ball ball-poke" aria-hidden="true"></span>
+            <span class="ball-meta"><small id="ballTypeName">POKÉ</small><strong id="ballCount">3</strong></span>
+          </div>
+        </div>
+      </header>
+
+      <button id="pauseButton" class="icon-button pause-button" aria-label="Pause game" type="button">
+        <span></span><span></span>
+      </button>
+
+      <div id="targetChip" class="target-chip" aria-live="polite">
+        <span class="target-dot"></span>
+        <div><small id="targetStatus">TARGET LOCKED</small><strong id="targetName">Pikachu</strong></div>
+      </div>
+
+      <button id="throwPad" class="throw-pad" type="button" aria-label="Tap to switch ball type; swipe upward to throw">
+        <span id="throwBall" class="throw-ball ball-poke"></span>
+        <span id="throwLabel" class="throw-label">POKÉ • SWIPE ↑</span>
+      </button>
+
+      <section id="startScreen" class="overlay start-screen">
+        <div class="eyebrow">9 GENERATIONS • 226 POKÉMON</div>
+        <div class="hero-title-lockup" aria-label="Poké Run">
+          <img id="titlePokemonLeft" class="title-pokemon" alt="" aria-hidden="true" />
+          <h1>POKÉ<br /><em>RUN</em></h1>
+          <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
+        </div>
+        <p>Move closer to bring Pokémon into range. Tap the ball to switch type, then swipe it upward to throw.</p>
+        <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
+          <button type="button" data-difficulty="explorer" aria-pressed="true">EXPLORER</button>
+          <button type="button" data-difficulty="trainer" aria-pressed="false">TRAINER</button>
+          <button type="button" data-difficulty="master" aria-pressed="false">MASTER</button>
+          <button type="button" data-difficulty="legend" aria-pressed="false">LEGEND</button>
+          <button type="button" data-difficulty="custom" aria-pressed="false">CUSTOM</button>
+        </div>
+        <div id="difficultyDescription" class="difficulty-note" aria-live="polite">Steady pace • 3 Poké + 1 Great + 1 Ultra • spaced hazards</div>
+        <div id="customControls" class="custom-controls hidden" aria-hidden="true">
+          <label class="custom-setting" for="customSpeed">
+            <span><b>SPEED</b><output id="customSpeedValue" for="customSpeed">100%</output></span>
+            <input id="customSpeed" type="range" min="60" max="180" step="10" value="100" />
+          </label>
+          <label class="custom-setting" for="customObstacles">
+            <span><b>OBSTACLES</b><output id="customObstaclesValue" for="customObstacles">5</output></span>
+            <input id="customObstacles" type="range" min="0" max="10" step="1" value="5" />
+          </label>
+          <label class="custom-setting" for="customBalls">
+            <span><b>BALLS</b><output id="customBallsValue" for="customBalls">5</output></span>
+            <input id="customBalls" type="range" min="1" max="10" step="1" value="5" />
+          </label>
+          <label class="custom-setting" for="customPokemon">
+            <span><b>POKÉMON ON SCREEN</b><output id="customPokemonValue" for="customPokemon">3</output></span>
+            <input id="customPokemon" type="range" min="1" max="6" step="1" value="3" />
+          </label>
+          <label class="custom-setting custom-setting-route" for="customRouteLength">
+            <span><b>ROUTE LENGTH</b><output id="customRouteLengthValue" for="customRouteLength">30 SIGHTINGS</output></span>
+            <input id="customRouteLength" type="range" min="20" max="40" step="1" value="30" />
+          </label>
+        </div>
+        <button id="startButton" class="primary-button" type="button">
+          <span>START RUN</span><b>→</b>
+        </button>
+        <div class="controls-note">
+          <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> MOVE</span>
+          <span><kbd>SPACE</kbd> THROW</span>
+          <span>SWIPE ROAD TO MOVE • TAP BALL TO SWITCH</span>
+        </div>
+      </section>
+
+      <section id="pauseScreen" class="overlay result-screen hidden" aria-hidden="true">
+        <div class="result-orb pause-orb">Ⅱ</div>
+        <div class="eyebrow">TAKE A BREATHER</div>
+        <h2>Run paused</h2>
+        <p>Your route is waiting right where you left it.</p>
+        <button id="resumeButton" class="primary-button" type="button"><span>KEEP RUNNING</span><b>→</b></button>
+      </section>
+
+      <section id="winScreen" class="overlay result-screen hidden" aria-hidden="true">
+        <div class="result-orb win-orb">★</div>
+        <div class="eyebrow">TEAM COMPLETE</div>
+        <h2>Dream team!</h2>
+        <p>You caught all 10 Pokémon. What a run!</p>
+        <div class="result-actions">
+          <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
+          <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
+        </div>
+      </section>
+
+      <section id="effortScreen" class="overlay result-screen hidden" aria-hidden="true">
+        <div class="result-orb effort-orb">✓</div>
+        <div class="eyebrow">FINISH LINE</div>
+        <h2>Good effort!</h2>
+        <p>You reached the finish with <strong id="effortCaught">0</strong> Pokémon. Catch 10 to complete the team.</p>
+        <div class="result-actions">
+          <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
+          <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
+        </div>
+      </section>
+
+      <section id="gameOverScreen" class="overlay result-screen hidden" aria-hidden="true">
+        <div class="result-orb lose-orb">×</div>
+        <div class="eyebrow">THE ROUTE GOT TOUGH</div>
+        <h2 id="gameOverTitle">Nice try, Trainer.</h2>
+        <p id="gameOverReason">You caught <strong id="finalCaught">0</strong> Pokémon this run.</p>
+        <div class="result-actions">
+          <button class="primary-button restart-button" type="button"><span>TRY AGAIN</span><b>↻</b></button>
+          <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
+        </div>
+      </section>
+
+      <div id="toast" class="toast" aria-live="polite"></div>
+    </main>
+
+    <script src="game.js?v=22"></script>
+    <script>
+      if ("serviceWorker" in navigator && location.protocol !== "file:") {
+        window.addEventListener("load", async () => {
+          try {
+            await navigator.serviceWorker.register("./service-worker.js?v=22");
+            const registration = await navigator.serviceWorker.ready;
+            registration.active?.postMessage({ type: "CACHE_FULL_ROSTER" });
+          } catch (error) {
+            console.warn("Offline installation was not available.", error);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
