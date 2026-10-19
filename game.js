@@ -749,7 +749,7 @@
         item.lastGap = item.z - state.playerZ;
       }
     }
-    showToast("STADIUM AHEAD");
+    showToast("GYM AHEAD");
     updateHUD();
   }
 
@@ -1550,14 +1550,29 @@
       for (const lane of lanes.filter(candidate => !available.includes(candidate))) {
         const center0 = width / 2 + lane * cell0;
         const center1 = width / 2 + lane * cell1;
-        ctx.fillStyle = `rgba(${Math.round(86 - midZ * 25)},${Math.round(138 - midZ * 35)},${Math.round(77 - midZ * 19)},.94)`;
+        const fracture0 = Math.sin((index + lane * 8.7) * 2.41) * cell0 * .055;
+        const fracture1 = Math.sin((index + 1 + lane * 8.7) * 2.41) * cell1 * .055;
+        const chasm = ctx.createLinearGradient(0, road0.y, 0, road1.y + 2);
+        chasm.addColorStop(0, "rgba(35,31,28,.96)");
+        chasm.addColorStop(.45, "rgba(17,23,24,.98)");
+        chasm.addColorStop(1, "rgba(5,14,17,.99)");
+        ctx.fillStyle = chasm;
         ctx.beginPath();
-        ctx.moveTo(center0 - cell0 * .49, road0.y);
-        ctx.lineTo(center0 + cell0 * .49, road0.y);
-        ctx.lineTo(center1 + cell1 * .49, road1.y + 1);
-        ctx.lineTo(center1 - cell1 * .49, road1.y + 1);
+        ctx.moveTo(center0 - cell0 * .50 + fracture0, road0.y);
+        ctx.lineTo(center0 + cell0 * .50 - fracture0, road0.y);
+        ctx.lineTo(center1 + cell1 * .50 - fracture1, road1.y + 2);
+        ctx.lineTo(center1 - cell1 * .50 + fracture1, road1.y + 2);
         ctx.closePath();
         ctx.fill();
+
+        ctx.strokeStyle = "rgba(103,78,53,.84)";
+        ctx.lineWidth = Math.max(1.2, 1 + midZ * 4.2);
+        ctx.beginPath();
+        ctx.moveTo(center0 - cell0 * .50 + fracture0, road0.y);
+        ctx.lineTo(center1 - cell1 * .50 + fracture1, road1.y + 2);
+        ctx.moveTo(center0 + cell0 * .50 - fracture0, road0.y);
+        ctx.lineTo(center1 + cell1 * .50 - fracture1, road1.y + 2);
+        ctx.stroke();
       }
 
       for (const lane of available) {
