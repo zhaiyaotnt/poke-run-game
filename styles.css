@@ -214,9 +214,11 @@ button { font: inherit; }
 .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .start-screen { align-items: flex-start; padding-left: clamp(28px, 9vw, 140px); text-align: left; background: linear-gradient(90deg, rgba(9,53,65,.78) 0%, rgba(9,53,65,.38) 43%, transparent 70%); }
 .eyebrow { margin-bottom: 10px; color: #fff0a0; font-size: 11px; font-weight: 900; letter-spacing: .3em; }
-.hero-title-lockup { display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); width: min(560px, 90vw); margin-left: clamp(-18px, -1.2vw, -7px); }
+.hero-title-lockup { display: flex; align-items: flex-end; gap: clamp(3px, 1vw, 14px); width: min(560px, 90vw); margin-left: clamp(-18px, -1.2vw, -7px); }
 .hero-title-lockup h1 { flex: 0 0 auto; }
-.game-mark { width: clamp(104px, 10vw, 154px); height: auto; flex: 0 0 auto; filter: drop-shadow(0 15px 19px rgba(7,38,47,.35)); animation: gameMarkFloat 3.1s ease-in-out infinite; }
+.title-pokemon { width: clamp(102px, 9vw, 148px); height: clamp(138px, 12vw, 190px); object-fit: contain; object-position: center bottom; opacity: 0; filter: drop-shadow(0 9px 11px rgba(7,38,47,.34)); animation: titlePokemonFloat 3.2s ease-in-out infinite; transition: opacity .28s ease; }
+.title-pokemon.is-ready { opacity: 1; }
+.title-pokemon-right { animation-delay: -1.55s; }
 .overlay h1, .overlay h2 { margin: 0; font-family: "Baloo 2", sans-serif; font-weight: 800; letter-spacing: -.045em; line-height: .88; text-shadow: 0 5px 18px rgba(8,42,51,.18); }
 .overlay h1 { font-size: clamp(60px, 8vw, 116px); }
 .overlay h1 em { color: var(--yellow); font-style: normal; }
@@ -265,7 +267,7 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
 
 @keyframes readyPulse { 0%, 100% { box-shadow: 0 10px 40px rgba(12,48,60,.25), 0 0 0 0 rgba(255,213,45,.55); } 50% { box-shadow: 0 10px 40px rgba(12,48,60,.25), 0 0 0 13px rgba(255,213,45,0); } }
 @keyframes tunerIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes gameMarkFloat { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-7px) rotate(1deg); } }
+@keyframes titlePokemonFloat { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-6px) rotate(1deg); } }
 @media (max-width: 700px) {
   .hud { height: 88px; padding: 14px 14px; grid-template-columns: 1fr 118px 1fr; gap: 10px; }
   .brand { font-size: 22px; letter-spacing: -1px; }
@@ -289,7 +291,7 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
   .throw-label { bottom: 5px; font-size: 7px; }
   .start-screen { padding: 28px; align-items: center; text-align: center; background: rgba(9,53,65,.5); }
   .hero-title-lockup { justify-content: center; width: 100%; margin-left: 0; gap: 2px; }
-  .game-mark { width: clamp(86px, 23vw, 112px); }
+  .title-pokemon { width: clamp(78px, 23vw, 98px); height: clamp(108px, 31vw, 132px); }
   .overlay h1 { font-size: clamp(54px, 17vw, 82px); }
   .overlay p { font-size: 14px; }
   .result-screen h2 { font-size: clamp(42px, 13vw, 62px); }
@@ -307,7 +309,7 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
   .start-screen { padding-top: 14px; padding-bottom: 14px; }
   .start-screen .eyebrow { margin-bottom: 5px; font-size: 8px; }
   .start-screen .hero-title-lockup { gap: 0; }
-  .start-screen .game-mark { width: 72px; }
+  .start-screen .title-pokemon { width: 68px; height: 88px; }
   .start-screen h1 { font-size: clamp(43px, 10vh, 67px); line-height: .86; }
   .start-screen p { margin: 9px 0; font-size: 12px; line-height: 1.35; }
   .difficulty-picker { margin-bottom: 5px; }

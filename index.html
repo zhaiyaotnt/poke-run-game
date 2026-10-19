@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=29" />
+    <link rel="stylesheet" href="styles.css?v=30" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -68,8 +68,9 @@
       <section id="startScreen" class="overlay start-screen">
         <div class="eyebrow">9 GENERATIONS • 226 POKÉMON</div>
         <div class="hero-title-lockup" aria-label="Poké Run">
-          <img class="game-mark" src="assets/icons/poke-run-mark.svg" alt="" aria-hidden="true" />
+          <img id="titlePokemonLeft" class="title-pokemon" alt="" aria-hidden="true" />
           <h1>POKÉ<br /><em>RUN</em></h1>
+          <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
         </div>
         <p>Move closer to bring Pokémon into range. Tap the ball to switch type, then swipe it upward to throw.</p>
         <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
@@ -168,12 +169,12 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=29"></script>
+    <script src="game.js?v=30"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {
           try {
-            await navigator.serviceWorker.register("./service-worker.js?v=29");
+            await navigator.serviceWorker.register("./service-worker.js?v=30");
             const registration = await navigator.serviceWorker.ready;
             registration.active?.postMessage({ type: "CACHE_FULL_ROSTER" });
           } catch (error) {

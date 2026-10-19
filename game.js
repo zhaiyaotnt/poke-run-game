@@ -46,6 +46,8 @@
     customPokemonValue: document.getElementById("customPokemonValue"),
     customRouteLength: document.getElementById("customRouteLength"),
     customRouteLengthValue: document.getElementById("customRouteLengthValue"),
+    titlePokemonLeft: document.getElementById("titlePokemonLeft"),
+    titlePokemonRight: document.getElementById("titlePokemonRight"),
     menuButtons: [...document.querySelectorAll(".menu-button")]
   };
 
@@ -113,6 +115,31 @@
     color: "#78c99a",
     asset: `assets/pokemon-3d/${dex}.png`
   }));
+
+  function setTitlePokemon(element, creature, fallback) {
+    if (!element || !creature) return;
+    element.classList.remove("is-ready");
+    element.dataset.dex = String(creature.dex);
+    element.title = creature.name;
+    let triedFallback = false;
+    element.onload = () => element.classList.add("is-ready");
+    element.onerror = () => {
+      if (triedFallback || !fallback || creature.dex === fallback.dex) return;
+      triedFallback = true;
+      element.title = fallback.name;
+      element.src = fallback.asset;
+    };
+    element.src = creature.asset;
+    if (element.complete && element.naturalWidth) element.classList.add("is-ready");
+  }
+
+  function randomizeTitlePokemon() {
+    const left = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
+    let right = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
+    while (right.dex === left.dex) right = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
+    setTitlePokemon(ui.titlePokemonLeft, left, creatureRoster.find(creature => creature.dex === 25));
+    setTitlePokemon(ui.titlePokemonRight, right, creatureRoster.find(creature => creature.dex === 150));
+  }
 
   function loadImage(src) {
     const image = new Image();
@@ -832,6 +859,7 @@
     hideAllOverlays();
     ui.start.classList.remove("hidden");
     ui.start.setAttribute("aria-hidden", "false");
+    randomizeTitlePokemon();
     setCustomControlsVisible(state.difficulty === "custom");
     ui.difficultyDescription.textContent = DIFFICULTIES[state.difficulty].description;
     updateHUD();
@@ -2332,14 +2360,14 @@
       const x = laneX(item.lane, item.z);
       const scale = .12 + road.e * 1.14;
       if (item.kind === "ball") {
-        const rollLift = Math.abs(Math.sin(item.spin)) * (1.3 + road.e * 3.4) * scale;
+        const rollLift = Math.abs(Math.sin(item.spin)) * (2.6 + road.e * 6.8) * scale;
         ctx.save();
         ctx.fillStyle = `rgba(16,48,40,${.12 + road.e * .15})`;
         ctx.beginPath();
-        ctx.ellipse(x + 3 * scale, road.y + 2, 16 * scale * (1 - rollLift * .018), 5 * scale, 0, 0, TAU);
+        ctx.ellipse(x + 5 * scale, road.y + 3, 32 * scale * (1 - rollLift * .009), 9 * scale, 0, 0, TAU);
         ctx.fill();
         ctx.restore();
-        drawPokeball(x, road.y - 18 * scale - rollLift, 18 * scale, item.spin, item.ballType || "poke");
+        drawPokeball(x, road.y - 36 * scale - rollLift, 36 * scale, item.spin, item.ballType || "poke");
       } else drawObstacle(item, x, road.y, scale);
     }
   }
@@ -2616,7 +2644,7 @@
     const arc = Math.sin(t * Math.PI) * height * .18;
     const x = state.thrown.startX + (target.screenX - state.thrown.startX) * t;
     const y = state.thrown.startY + (target.screenY - state.thrown.startY) * t - arc;
-    drawPokeball(x, y, 13 + Math.sin(t*Math.PI)*4, t * 12, state.thrown.ballType);
+    drawPokeball(x, y, 26 + Math.sin(t*Math.PI)*8, t * 12, state.thrown.ballType);
   }
 
   function drawParticles() {
@@ -2823,6 +2851,7 @@
   window.addEventListener("blur", () => { if (state.mode === "playing") togglePause(); });
 
   updateCustomDifficulty();
+  randomizeTitlePokemon();
   setCustomControlsVisible(false);
   resize();
   seedWorld();
