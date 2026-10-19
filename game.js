@@ -1116,14 +1116,13 @@
     ui.effortCaught.textContent = state.caught;
     renderCaughtGalleries();
     if (!won && !effort) {
-      const riverLoss = reason === "river" || reason === "riverSide";
-      ui.overTitle.textContent = reason === "roadGap" ? "Off the trail!" : riverLoss ? "Swept away!" : "Nice try, Trainer.";
+      ui.overTitle.textContent = reason === "roadGap" ? "Off the trail!" : reason === "riverSide" ? "Into the valley!" : reason === "river" ? "Swept away!" : "Nice try, Trainer.";
       ui.overReason.innerHTML = reason === "river"
         ? `The bridge was in the center lane. You caught <strong>${state.caught}</strong> Pokémon.`
         : reason === "riverSide"
-          ? `You stepped beyond the road into the riverside. You caught <strong>${state.caught}</strong> Pokémon.`
+          ? `You stepped beyond the road and tumbled into the valley. You caught <strong>${state.caught}</strong> Pokémon.`
           : reason === "roadGap"
-            ? `That lane ended beneath you. You caught <strong>${state.caught}</strong> Pokémon.`
+            ? `That lane ended above the valley. You caught <strong>${state.caught}</strong> Pokémon.`
           : `You caught <strong>${state.caught}</strong> Pokémon this run.`;
     }
     screen.classList.remove("hidden");
@@ -1566,13 +1565,13 @@
   function drawRoad() {
     const count = DIFFICULTIES[state.difficulty].laneCount || 3;
     const lanes = laneValues(count);
-    const slices = 72;
+    const slices = 42;
     ctx.save();
     ctx.lineJoin = "round";
 
     for (let index = 0; index < slices; index++) {
       const z0 = index / slices;
-      const z1 = (index + 1.15) / slices;
+      const z1 = (index + 1.08) / slices;
       const midZ = (z0 + z1) / 2;
       // Once the route is complete, the road truly stops at its moving edge.
       // Nothing is painted beyond it, leaving the meadow visible underneath.
@@ -1582,14 +1581,16 @@
       const road1 = roadGeometry(z1);
       const cell0 = road0.half * 2 / count;
       const cell1 = road1.half * 2 / count;
-      const warmth = Math.round(218 - midZ * 58);
-      const green = Math.round(207 - midZ * 80);
-      const blue = Math.round(164 - midZ * 83);
+      const plankVariation = hashUnit(index * 4.13 + state.roadSeed * .031) - .5;
+      const warmth = Math.round(226 - midZ * 24 + plankVariation * 14);
+      const green = Math.round(195 - midZ * 25 + plankVariation * 10);
+      const blue = Math.round(137 - midZ * 20 + plankVariation * 7);
 
       for (const lane of available) {
         const center0 = width / 2 + lane * cell0;
         const center1 = width / 2 + lane * cell1;
-        ctx.fillStyle = `rgba(${warmth},${green},${blue},${.79 + midZ * .16})`;
+        const laneVariation = (hashUnit(index * 2.61 + lane * 7.47) - .5) * 8;
+        ctx.fillStyle = `rgb(${Math.round(warmth + laneVariation)},${Math.round(green + laneVariation)},${Math.round(blue + laneVariation * .6)})`;
         ctx.beginPath();
         ctx.moveTo(center0 - cell0 * .505, road0.y);
         ctx.lineTo(center0 + cell0 * .505, road0.y);
@@ -1597,12 +1598,37 @@
         ctx.lineTo(center1 - cell1 * .505, road1.y + 1);
         ctx.closePath();
         ctx.fill();
+        ctx.strokeStyle = "rgba(102,69,39,.24)";
+        ctx.lineWidth = Math.max(.7, .6 + midZ * 1.8);
+        ctx.stroke();
+
+        if (midZ > .18 && index % 2 === 0) {
+          const grainY = road0.y + (road1.y - road0.y) * .56;
+          const grainHalf = (cell0 + cell1) * .12;
+          const grainCenter = (center0 + center1) / 2 + Math.sin(index + lane) * cell1 * .08;
+          ctx.strokeStyle = "rgba(117,77,39,.18)";
+          ctx.lineWidth = Math.max(.6, midZ * 1.25);
+          ctx.beginPath();
+          ctx.moveTo(grainCenter - grainHalf, grainY);
+          ctx.quadraticCurveTo(grainCenter, grainY - 1.5 - midZ * 2, grainCenter + grainHalf, grainY);
+          ctx.stroke();
+        }
+
+        if (midZ > .34 && index % 3 === 0) {
+          const nailY = road0.y + (road1.y - road0.y) * .34;
+          const nailRadius = .55 + midZ * 1.15;
+          ctx.fillStyle = "rgba(77,66,54,.46)";
+          for (const side of [-1, 1]) {
+            const nailX = (center0 + center1) / 2 + side * (cell0 + cell1) * .205;
+            ctx.beginPath(); ctx.arc(nailX, nailY, nailRadius, 0, TAU); ctx.fill();
+          }
+        }
 
         const laneIndex = lanes.indexOf(lane);
         const leftNeighbor = lanes[laneIndex - 1];
         const rightNeighbor = lanes[laneIndex + 1];
-        ctx.strokeStyle = "rgba(100,83,58,.30)";
-        ctx.lineWidth = 1 + midZ * 2.5;
+        ctx.strokeStyle = "rgba(91,59,34,.46)";
+        ctx.lineWidth = 1 + midZ * 2.8;
         if (leftNeighbor !== undefined && !available.includes(leftNeighbor)) {
           ctx.beginPath(); ctx.moveTo(center0 - cell0 / 2, road0.y); ctx.lineTo(center1 - cell1 / 2, road1.y); ctx.stroke();
         }
@@ -1613,8 +1639,8 @@
 
       const dashPhase = Math.abs(Math.floor((state.distance - midZ) / .052));
       if (dashPhase % 2 === 0) {
-        ctx.strokeStyle = "rgba(244,235,203,.48)";
-        ctx.lineWidth = 1 + midZ * 4;
+        ctx.strokeStyle = "rgba(255,247,216,.60)";
+        ctx.lineWidth = 1 + midZ * 3.2;
         for (let laneIndex = 0; laneIndex < lanes.length - 1; laneIndex++) {
           const leftLane = lanes[laneIndex];
           const rightLane = lanes[laneIndex + 1];
@@ -1625,178 +1651,256 @@
         }
       }
     }
-
-    ctx.globalAlpha = .12;
-    ctx.strokeStyle = "#70533b";
-    for (let index = 0; index < 13; index++) {
-      const z = (index / 13 + state.distance * .45) % 1;
-      if (state.finishLineActive && z < state.finishLineZ) continue;
-      const road = roadGeometry(z);
-      const available = availableLanesAtWorld(state.distance - z);
-      for (const lane of available) {
-        const cell = road.half * 2 / count;
-        const center = width / 2 + lane * cell;
-        ctx.lineWidth = 1 + z * 2;
-        ctx.beginPath(); ctx.moveTo(center - cell * .34, road.y); ctx.lineTo(center + cell * .34, road.y); ctx.stroke();
-      }
-    }
     ctx.restore();
   }
 
   function drawGymGate() {
     if (!state.gymGateActive || state.gymGateZ < .01 || state.gymGateZ > 1.06) return;
     const road = roadGeometry(state.gymGateZ);
-    const span = road.half * .98;
-    const stadiumHeight = 56 + road.e * 238;
+    const span = road.half * 1.13;
+    const stadiumHeight = 62 + road.e * 250;
     const top = road.y - stadiumHeight;
     const count = DIFFICULTIES[state.difficulty].laneCount || 3;
     const laneWidth = road.half * 2 / count;
-    const doorWidth = Math.max(12, laneWidth * .68);
-    const doorHeight = Math.max(18, stadiumHeight * .48);
+    const doorWidth = Math.max(14, laneWidth * .76);
+    const doorHeight = Math.max(20, stadiumHeight * .40);
     ctx.save();
-    const stadiumAura = ctx.createRadialGradient(width / 2, top + stadiumHeight * .48, span * .16, width / 2, top + stadiumHeight * .48, span * 1.35);
-    stadiumAura.addColorStop(0, "rgba(109,235,255,.30)");
-    stadiumAura.addColorStop(.48, "rgba(141,105,255,.17)");
-    stadiumAura.addColorStop(1, "rgba(57,221,255,0)");
+
+    const stadiumAura = ctx.createRadialGradient(width / 2, top + stadiumHeight * .42, span * .12, width / 2, top + stadiumHeight * .48, span * 1.42);
+    stadiumAura.addColorStop(0, "rgba(255,245,185,.42)");
+    stadiumAura.addColorStop(.52, "rgba(119,221,226,.18)");
+    stadiumAura.addColorStop(1, "rgba(77,181,170,0)");
     ctx.fillStyle = stadiumAura;
     ctx.beginPath(); ctx.ellipse(width / 2, top + stadiumHeight * .48, span * 1.38, stadiumHeight * .72, 0, 0, TAU); ctx.fill();
 
-    ctx.fillStyle = "rgba(20,48,62,.28)";
-    ctx.beginPath(); ctx.ellipse(width / 2, road.y + 5, span * 1.08, 8 + road.e * 18, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(29,75,60,.25)";
+    ctx.beginPath(); ctx.ellipse(width / 2, road.y + 6, span * 1.1, 9 + road.e * 20, 0, 0, TAU); ctx.fill();
 
     const facade = ctx.createLinearGradient(0, top, 0, road.y);
-    facade.addColorStop(0, "#eef4f1");
-    facade.addColorStop(.42, "#88aeba");
-    facade.addColorStop(1, "#315c73");
+    facade.addColorStop(0, "#ead9a5");
+    facade.addColorStop(.44, "#c8ae72");
+    facade.addColorStop(1, "#907248");
     ctx.fillStyle = facade;
-    roundedRect(width / 2 - span, top + stadiumHeight * .18, span * 2, stadiumHeight * .82, Math.max(5, stadiumHeight * .16));
+    roundedRect(width / 2 - span, top + stadiumHeight * .18, span * 2, stadiumHeight * .82, Math.max(7, stadiumHeight * .17));
     ctx.fill();
+    ctx.strokeStyle = "rgba(92,74,48,.56)";
+    ctx.lineWidth = Math.max(1, road.e * 3);
+    ctx.stroke();
 
-    ctx.fillStyle = "#173f60";
+    // Open roof and the blue seating tiers make the building read as a stadium.
+    ctx.fillStyle = "#baa168";
     ctx.beginPath();
-    ctx.ellipse(width / 2, top + stadiumHeight * .25, span, stadiumHeight * .26, 0, Math.PI, TAU);
-    ctx.lineTo(width / 2 + span, top + stadiumHeight * .42);
-    ctx.ellipse(width / 2, top + stadiumHeight * .42, span, stadiumHeight * .20, 0, 0, Math.PI, true);
-    ctx.closePath();
+    ctx.ellipse(width / 2, top + stadiumHeight * .20, span * .98, stadiumHeight * .18, 0, 0, TAU);
     ctx.fill();
-
-    ctx.strokeStyle = "rgba(164,244,255,.88)";
-    ctx.lineWidth = Math.max(1, road.e * 3.5);
-    ctx.shadowColor = "rgba(87,225,255,.84)";
-    ctx.shadowBlur = Math.max(7, road.e * 18);
-    for (const tier of [.37, .50, .63]) {
+    ctx.fillStyle = "#2f7899";
+    ctx.beginPath(); ctx.ellipse(width / 2, top + stadiumHeight * .19, span * .83, stadiumHeight * .115, 0, 0, TAU); ctx.fill();
+    for (const tier of [0, 1, 2]) {
+      ctx.strokeStyle = tier === 1 ? "#77c7d4" : "#315e87";
+      ctx.lineWidth = Math.max(1.2, 1.2 + road.e * 3.2);
       ctx.beginPath();
-      ctx.ellipse(width / 2, top + stadiumHeight * tier, span * (1 - tier * .10), stadiumHeight * .12, 0, 0, Math.PI);
+      ctx.ellipse(width / 2, top + stadiumHeight * (.205 + tier * .028), span * (.78 - tier * .045), stadiumHeight * (.085 - tier * .008), 0, 0, Math.PI);
       ctx.stroke();
     }
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
 
-    const doorGlow = ctx.createRadialGradient(width / 2, road.y - doorHeight * .35, 1, width / 2, road.y - doorHeight * .35, doorWidth * 1.2);
-    doorGlow.addColorStop(0, "rgba(188,252,255,.96)");
-    doorGlow.addColorStop(.34, "rgba(80,222,255,.70)");
-    doorGlow.addColorStop(.70, "rgba(144,94,255,.32)");
-    doorGlow.addColorStop(1, "rgba(109,235,255,0)");
+    // Arched bays and a cool glass band echo the reference facade.
+    ctx.fillStyle = "rgba(79,169,197,.76)";
+    ctx.fillRect(width / 2 - span * .91, road.y - stadiumHeight * .22, span * 1.82, stadiumHeight * .16);
+    ctx.strokeStyle = "rgba(210,247,244,.55)";
+    ctx.lineWidth = Math.max(1, road.e * 2);
+    for (let pane = -4; pane <= 4; pane++) {
+      const paneX = width / 2 + span * pane / 5;
+      ctx.beginPath(); ctx.moveTo(paneX, road.y - stadiumHeight * .22); ctx.lineTo(paneX, road.y - stadiumHeight * .06); ctx.stroke();
+    }
+
+    for (const bay of [-.55, .55]) {
+      const bayX = width / 2 + span * bay;
+      const bayW = span * .32;
+      const bayH = stadiumHeight * .28;
+      ctx.fillStyle = "#765c43";
+      ctx.beginPath();
+      ctx.moveTo(bayX - bayW / 2, road.y - stadiumHeight * .25);
+      ctx.lineTo(bayX - bayW / 2, road.y - stadiumHeight * .25 - bayH * .42);
+      ctx.arc(bayX, road.y - stadiumHeight * .25 - bayH * .42, bayW / 2, Math.PI, TAU);
+      ctx.lineTo(bayX + bayW / 2, road.y - stadiumHeight * .25);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(87,63,43,.58)"; ctx.stroke();
+    }
+
+    // Tall blue buttresses give the warm oval shell its characteristic rhythm.
+    for (const position of [-.82, -.36, .36, .82]) {
+      const pillarX = width / 2 + span * position;
+      const pillarW = Math.max(3, span * .11);
+      const pillarTop = top + stadiumHeight * .21;
+      const pillarBottom = road.y - stadiumHeight * .05;
+      const pillar = ctx.createLinearGradient(pillarX - pillarW, 0, pillarX + pillarW, 0);
+      pillar.addColorStop(0, "#6f9bb6"); pillar.addColorStop(.5, "#b8d1df"); pillar.addColorStop(1, "#3f6280");
+      ctx.fillStyle = pillar;
+      ctx.beginPath();
+      ctx.moveTo(pillarX - pillarW, pillarTop);
+      ctx.lineTo(pillarX + pillarW, pillarTop + stadiumHeight * .025);
+      ctx.lineTo(pillarX + pillarW * .72, pillarBottom);
+      ctx.lineTo(pillarX - pillarW * .72, pillarBottom);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(45,70,91,.72)"; ctx.stroke();
+    }
+
+    const doorGlow = ctx.createRadialGradient(width / 2, road.y - doorHeight * .4, 1, width / 2, road.y - doorHeight * .4, doorWidth * 1.45);
+    doorGlow.addColorStop(0, "rgba(224,255,255,.84)");
+    doorGlow.addColorStop(.52, "rgba(74,202,228,.44)");
+    doorGlow.addColorStop(1, "rgba(74,202,228,0)");
     ctx.fillStyle = doorGlow;
-    ctx.beginPath(); ctx.ellipse(width / 2, road.y - doorHeight * .35, doorWidth * 1.35, doorHeight * .8, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(width / 2, road.y - doorHeight * .38, doorWidth * 1.48, doorHeight * .92, 0, 0, TAU); ctx.fill();
 
-    ctx.fillStyle = "#091f35";
+    ctx.fillStyle = "#254a63";
     roundedRect(width / 2 - doorWidth / 2, road.y - doorHeight, doorWidth, doorHeight + 3, doorWidth / 2);
     ctx.fill();
-    ctx.fillStyle = "rgba(96,224,247,.38)";
-    roundedRect(width / 2 - doorWidth * .36, road.y - doorHeight * .88, doorWidth * .72, doorHeight * .88, doorWidth * .36);
+    ctx.fillStyle = "rgba(116,220,232,.66)";
+    roundedRect(width / 2 - doorWidth * .36, road.y - doorHeight * .88, doorWidth * .72, doorHeight * .88, doorWidth * .34);
     ctx.fill();
 
-    const emblemY = top + stadiumHeight * .32;
-    const emblemR = 5 + road.e * 15;
-    ctx.fillStyle = "#f7f7ee";
-    ctx.shadowColor = "rgba(119,236,255,.92)";
-    ctx.shadowBlur = Math.max(8, emblemR * 1.4);
-    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#e95757";
-    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR * .84, Math.PI, TAU); ctx.fill();
-    ctx.fillStyle = "#173f60";
-    ctx.fillRect(width / 2 - emblemR, emblemY - emblemR * .13, emblemR * 2, emblemR * .26);
+    const signW = Math.max(18, span * .54);
+    const signH = Math.max(10, stadiumHeight * .12);
+    const signY = top + stadiumHeight * .38;
+    ctx.fillStyle = "#b45b72";
+    roundedRect(width / 2 - signW / 2, signY, signW, signH, Math.max(2, signH * .16)); ctx.fill();
+    ctx.strokeStyle = "rgba(255,240,205,.78)"; ctx.lineWidth = Math.max(1, road.e * 2.2); ctx.stroke();
+    const emblemR = Math.min(signH * .34, 5 + road.e * 12);
+    const emblemY = signY + signH / 2;
     ctx.fillStyle = "white";
-    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR * .28, 0, TAU); ctx.fill();
-    ctx.strokeStyle = "#173f60";
-    ctx.lineWidth = Math.max(1, emblemR * .12);
-    ctx.stroke();
-    ctx.shadowColor = "transparent";
+    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#e45458";
+    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR * .84, Math.PI, TAU); ctx.fill();
+    ctx.fillStyle = "#31506a";
+    ctx.fillRect(width / 2 - emblemR, emblemY - emblemR * .12, emblemR * 2, emblemR * .24);
+    ctx.fillStyle = "white";
+    ctx.beginPath(); ctx.arc(width / 2, emblemY, emblemR * .27, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#31506a"; ctx.lineWidth = Math.max(1, emblemR * .12); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawArenaTree(x, groundY, scale, tint = 0) {
+    ctx.save();
+    ctx.translate(x, groundY);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = tint ? "#6d8b49" : "#527f45";
+    ctx.fillRect(-5, -48, 10, 50);
+    ctx.fillStyle = tint ? "#8fbd55" : "#5fa957";
+    for (const [leafX, leafY, leafR] of [[0,-69,28],[-20,-58,21],[21,-56,23],[-10,-86,18],[14,-82,18]]) {
+      ctx.beginPath(); ctx.arc(leafX, leafY, leafR, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(210,245,151,.24)";
+    ctx.beginPath(); ctx.arc(-9, -80, 14, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
   function drawArenaBackground() {
-    const horizon = height * .34;
+    const horizon = height * .39;
     const sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, "#09162f");
-    sky.addColorStop(.34, "#213d70");
-    sky.addColorStop(.345, "#d9f5fb");
-    sky.addColorStop(1, "#245a73");
+    sky.addColorStop(0, "#bfe9f5");
+    sky.addColorStop(.42, "#e8f6e9");
+    sky.addColorStop(.43, "#9fcf83");
+    sky.addColorStop(1, "#3f7390");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = "rgba(9,31,58,.88)";
-    ctx.beginPath();
-    ctx.moveTo(0, horizon * .40);
-    ctx.quadraticCurveTo(width / 2, horizon * 1.34, width, horizon * .40);
-    ctx.lineTo(width, horizon * 1.28);
-    ctx.quadraticCurveTo(width / 2, horizon * 1.82, 0, horizon * 1.28);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(240,248,250,.88)";
-    for (let index = 0; index < 9; index++) {
-      const x = width * (.08 + index * .105);
-      ctx.shadowColor = index % 2 ? "#7ee8ff" : "#c59aff";
-      ctx.shadowBlur = 14;
-      ctx.beginPath(); ctx.arc(x, horizon * .82 + Math.sin(index) * 7, Math.max(2.5, width * .005), 0, TAU); ctx.fill();
+    // Airy glass dome and structural ribs.
+    const domeGlow = ctx.createRadialGradient(width / 2, height * .06, 2, width / 2, height * .16, width * .74);
+    domeGlow.addColorStop(0, "rgba(255,255,238,.94)");
+    domeGlow.addColorStop(.62, "rgba(196,237,242,.28)");
+    domeGlow.addColorStop(1, "rgba(152,211,222,0)");
+    ctx.fillStyle = domeGlow;
+    ctx.fillRect(0, 0, width, horizon * 1.42);
+    ctx.strokeStyle = "rgba(77,139,157,.42)";
+    ctx.lineWidth = Math.max(2, width * .004);
+    for (const anchor of [.08, .27, .5, .73, .92]) {
+      ctx.beginPath();
+      ctx.moveTo(width * anchor, horizon * 1.05);
+      ctx.quadraticCurveTo(width * (.5 + (anchor - .5) * .16), height * .03, width / 2, 0);
+      ctx.stroke();
     }
-    ctx.shadowColor = "transparent";
+    for (const arcY of [.12, .22, .32]) {
+      ctx.beginPath();
+      ctx.ellipse(width / 2, height * arcY, width * (.43 - arcY * .26), height * (.11 + arcY * .04), 0, Math.PI, TAU);
+      ctx.stroke();
+    }
 
-    const interiorGlow = ctx.createRadialGradient(width / 2, horizon * .78, 4, width / 2, horizon * .78, width * .62);
-    interiorGlow.addColorStop(0, "rgba(141,240,255,.34)");
-    interiorGlow.addColorStop(.48, "rgba(139,103,255,.16)");
-    interiorGlow.addColorStop(1, "rgba(8,20,47,0)");
-    ctx.fillStyle = interiorGlow;
-    ctx.fillRect(0, 0, width, height * .72);
+    // Distant garden wall, glowing columns, and central exit portal.
+    ctx.fillStyle = "rgba(57,124,87,.40)";
+    ctx.fillRect(0, horizon * .68, width, horizon * .38);
+    for (const columnX of [width * .19, width * .81]) {
+      const columnGlow = ctx.createLinearGradient(columnX, horizon * .25, columnX, horizon * 1.12);
+      columnGlow.addColorStop(0, "rgba(245,235,137,.30)");
+      columnGlow.addColorStop(.48, "rgba(255,245,168,.82)");
+      columnGlow.addColorStop(1, "rgba(209,226,128,.22)");
+      ctx.fillStyle = columnGlow;
+      roundedRect(columnX - width * .075, horizon * .23, width * .15, horizon * .83, width * .06); ctx.fill();
+    }
+    drawArenaTree(width * .09, horizon * 1.11, Math.max(.42, width / 780), 0);
+    drawArenaTree(width * .29, horizon * 1.10, Math.max(.36, width / 900), 1);
+    drawArenaTree(width * .71, horizon * 1.10, Math.max(.36, width / 900), 1);
+    drawArenaTree(width * .91, horizon * 1.11, Math.max(.42, width / 780), 0);
 
-    const floor = ctx.createLinearGradient(0, horizon, 0, height);
-    floor.addColorStop(0, "#83b9bb");
-    floor.addColorStop(.58, "#4d9498");
-    floor.addColorStop(1, "#286c73");
+    ctx.fillStyle = "#e9f6ef";
+    roundedRect(width * .455, horizon * .62, width * .09, horizon * .43, width * .04); ctx.fill();
+    ctx.fillStyle = "rgba(72,155,174,.74)";
+    roundedRect(width * .47, horizon * .69, width * .06, horizon * .36, width * .03); ctx.fill();
+
+    // Reflective blue perimeter around the warm wooden battle floor.
+    const surround = ctx.createLinearGradient(0, horizon, 0, height);
+    surround.addColorStop(0, "#76c6cf");
+    surround.addColorStop(.44, "#4f94b7");
+    surround.addColorStop(1, "#355e9b");
+    ctx.fillStyle = surround;
+    ctx.fillRect(0, horizon, width, height - horizon);
+    ctx.fillStyle = "rgba(184,242,236,.28)";
+    for (let stripe = 0; stripe < 5; stripe++) {
+      const stripeY = horizon + (height - horizon) * (stripe + .45) / 5;
+      ctx.fillRect(0, stripeY, width, Math.max(1, height * .004));
+    }
+
+    const floorTop = horizon * .98;
+    const floorBottom = height * .91;
+    const floor = ctx.createLinearGradient(0, floorTop, 0, floorBottom);
+    floor.addColorStop(0, "#ead39a");
+    floor.addColorStop(.55, "#d7b774");
+    floor.addColorStop(1, "#bf955b");
     ctx.fillStyle = floor;
     ctx.beginPath();
-    ctx.moveTo(width * .39, horizon);
-    ctx.lineTo(width * .61, horizon);
-    ctx.lineTo(width * 1.02, height);
-    ctx.lineTo(-width * .02, height);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(width * .38, floorTop);
+    ctx.lineTo(width * .62, floorTop);
+    ctx.lineTo(width * .92, floorBottom * .92);
+    ctx.lineTo(width * .82, floorBottom);
+    ctx.lineTo(width * .18, floorBottom);
+    ctx.lineTo(width * .08, floorBottom * .92);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255,250,224,.86)";
+    ctx.lineWidth = Math.max(2, width * .006);
+    ctx.stroke();
 
-    const arenaY = height * .69;
-    const arenaRadiusX = Math.min(width * .39, height * .34);
-    const arenaRadiusY = arenaRadiusX * .30;
-    ctx.strokeStyle = "rgba(210,253,255,.78)";
+    // Wide flooring boards and a clean battle-center marking.
+    ctx.strokeStyle = "rgba(118,82,46,.20)";
+    ctx.lineWidth = Math.max(.7, width * .0015);
+    for (let plank = 1; plank < 9; plank++) {
+      const t = plank / 9;
+      const y = floorTop + (floorBottom - floorTop) * t * t;
+      const left = width * (.38 - .22 * t);
+      const right = width * (.62 + .22 * t);
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(255,255,241,.82)";
     ctx.lineWidth = Math.max(2, width * .004);
-    ctx.shadowColor = "rgba(82,232,255,.84)";
-    ctx.shadowBlur = Math.max(10, width * .025);
-    ctx.beginPath(); ctx.ellipse(width / 2, arenaY, arenaRadiusX, arenaRadiusY, 0, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = "rgba(169,116,255,.50)";
-    ctx.lineWidth = Math.max(8, width * .018);
-    ctx.beginPath(); ctx.ellipse(width / 2, arenaY, arenaRadiusX * .78, arenaRadiusY * .78, 0, 0, TAU); ctx.stroke();
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.moveTo(width / 2, floorTop); ctx.lineTo(width / 2, floorBottom); ctx.stroke();
 
+    const emblemY = height * .70;
     const emblemRadius = Math.min(width, height) * .055;
     ctx.save();
-    ctx.translate(width / 2, arenaY);
-    ctx.scale(1, .35);
-    ctx.fillStyle = "rgba(239,247,239,.34)";
+    ctx.translate(width / 2, emblemY);
+    ctx.scale(1, .36);
+    ctx.fillStyle = "rgba(255,253,232,.72)";
     ctx.beginPath(); ctx.arc(0, 0, emblemRadius, 0, TAU); ctx.fill();
-    ctx.fillStyle = "rgba(26,67,88,.42)";
+    ctx.fillStyle = "rgba(70,112,135,.62)";
     ctx.fillRect(-emblemRadius, -emblemRadius * .10, emblemRadius * 2, emblemRadius * .20);
-    ctx.fillStyle = "rgba(239,247,239,.58)";
+    ctx.fillStyle = "rgba(255,253,232,.92)";
     ctx.beginPath(); ctx.arc(0, 0, emblemRadius * .28, 0, TAU); ctx.fill();
     ctx.restore();
   }
