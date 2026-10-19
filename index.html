@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=28" />
+    <link rel="stylesheet" href="styles.css?v=29" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -68,9 +68,8 @@
       <section id="startScreen" class="overlay start-screen">
         <div class="eyebrow">9 GENERATIONS • 226 POKÉMON</div>
         <div class="hero-title-lockup" aria-label="Poké Run">
-          <img id="titlePokemonLeft" class="title-pokemon" alt="" aria-hidden="true" />
+          <img class="game-mark" src="assets/icons/poke-run-mark.svg" alt="" aria-hidden="true" />
           <h1>POKÉ<br /><em>RUN</em></h1>
-          <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
         </div>
         <p>Move closer to bring Pokémon into range. Tap the ball to switch type, then swipe it upward to throw.</p>
         <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
@@ -124,7 +123,7 @@
       <section id="winScreen" class="overlay result-screen hidden" aria-hidden="true">
         <div class="result-orb win-orb">★</div>
         <div class="eyebrow">TEAM COMPLETE</div>
-        <h2>Dream team!</h2>
+        <h2>You did it, Aaron!</h2>
         <p>You caught all 15 Pokémon. What a run!</p>
         <div class="caught-summary">
           <span>CAUGHT THIS RUN</span>
@@ -139,7 +138,7 @@
       <section id="effortScreen" class="overlay result-screen hidden" aria-hidden="true">
         <div class="result-orb effort-orb">↘</div>
         <div class="eyebrow">END OF ROAD</div>
-        <h2>Good effort!</h2>
+        <h2>Good effort, Aaron!</h2>
         <p>The road ended above the valley. You caught <strong id="effortCaught">0</strong> Pokémon—catch 15 to complete the team.</p>
         <div class="caught-summary">
           <span>CAUGHT THIS RUN</span>
@@ -154,7 +153,7 @@
       <section id="gameOverScreen" class="overlay result-screen hidden" aria-hidden="true">
         <div class="result-orb lose-orb">×</div>
         <div class="eyebrow">THE ROUTE GOT TOUGH</div>
-        <h2 id="gameOverTitle">Nice try, Trainer.</h2>
+        <h2 id="gameOverTitle">Nice Try, Aaron!</h2>
         <p id="gameOverReason">You caught <strong id="finalCaught">0</strong> Pokémon this run.</p>
         <div class="caught-summary">
           <span>CAUGHT THIS RUN</span>
@@ -169,12 +168,12 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=28"></script>
+    <script src="game.js?v=29"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {
           try {
-            await navigator.serviceWorker.register("./service-worker.js?v=22");
+            await navigator.serviceWorker.register("./service-worker.js?v=29");
             const registration = await navigator.serviceWorker.ready;
             registration.active?.postMessage({ type: "CACHE_FULL_ROSTER" });
           } catch (error) {

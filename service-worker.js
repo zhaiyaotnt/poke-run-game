@@ -1,4 +1,4 @@
-const CACHE_NAME = "poke-run-garden-stadium-v28";
+const CACHE_NAME = "poke-run-dimensional-motion-v29";
 
 const CORE_ASSETS = [
   "./",
@@ -9,6 +9,7 @@ const CORE_ASSETS = [
   "./assets/icons/poke-run-180.png",
   "./assets/icons/poke-run-192.png",
   "./assets/icons/poke-run-512.png",
+  "./assets/icons/poke-run-mark.svg",
   "./assets/environment/alpine-meadow-ground-v2.jpg",
   "./assets/pokemon-3d/25.png",
   "./assets/pokemon-3d/150.png",

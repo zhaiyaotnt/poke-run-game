@@ -46,8 +46,6 @@
     customPokemonValue: document.getElementById("customPokemonValue"),
     customRouteLength: document.getElementById("customRouteLength"),
     customRouteLengthValue: document.getElementById("customRouteLengthValue"),
-    titlePokemonLeft: document.getElementById("titlePokemonLeft"),
-    titlePokemonRight: document.getElementById("titlePokemonRight"),
     menuButtons: [...document.querySelectorAll(".menu-button")]
   };
 
@@ -115,31 +113,6 @@
     color: "#78c99a",
     asset: `assets/pokemon-3d/${dex}.png`
   }));
-
-  function setTitlePokemon(element, creature, fallback) {
-    if (!element || !creature) return;
-    element.classList.remove("is-ready");
-    element.dataset.dex = String(creature.dex);
-    element.title = creature.name;
-    let triedFallback = false;
-    element.onload = () => element.classList.add("is-ready");
-    element.onerror = () => {
-      if (triedFallback || !fallback || creature.dex === fallback.dex) return;
-      triedFallback = true;
-      element.title = fallback.name;
-      element.src = fallback.asset;
-    };
-    element.src = creature.asset;
-    if (element.complete && element.naturalWidth) element.classList.add("is-ready");
-  }
-
-  function randomizeTitlePokemon() {
-    const left = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
-    let right = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
-    while (right.dex === left.dex) right = creatureRoster[Math.floor(Math.random() * creatureRoster.length)];
-    setTitlePokemon(ui.titlePokemonLeft, left, creatureRoster.find(creature => creature.dex === 25));
-    setTitlePokemon(ui.titlePokemonRight, right, creatureRoster.find(creature => creature.dex === 150));
-  }
 
   function loadImage(src) {
     const image = new Image();
@@ -859,7 +832,6 @@
     hideAllOverlays();
     ui.start.classList.remove("hidden");
     ui.start.setAttribute("aria-hidden", "false");
-    randomizeTitlePokemon();
     setCustomControlsVisible(state.difficulty === "custom");
     ui.difficultyDescription.textContent = DIFFICULTIES[state.difficulty].description;
     updateHUD();
@@ -1038,7 +1010,9 @@
     updateHUD();
     showToast(source === "gap" ? "THE LANE ENDED" : source === "side" ? "YOU FELL OFF THE ROAD" : "YOU MISSED THE BRIDGE");
     const reason = source === "gap" ? "roadGap" : source === "side" ? "riverSide" : "river";
-    setTimeout(() => endGame(false, reason), source === "bridge" ? 260 : 430);
+    // Leave the fall visible long enough to read as a real tumble instead of
+    // cutting immediately from a tilted running pose to the result screen.
+    setTimeout(() => endGame(false, reason), source === "bridge" ? 860 : 1040);
   }
 
   function collectBall(item) {
@@ -1116,7 +1090,7 @@
     ui.effortCaught.textContent = state.caught;
     renderCaughtGalleries();
     if (!won && !effort) {
-      ui.overTitle.textContent = reason === "roadGap" ? "Off the trail!" : reason === "riverSide" ? "Into the valley!" : reason === "river" ? "Swept away!" : "Nice try, Trainer.";
+      ui.overTitle.textContent = "Nice Try, Aaron!";
       ui.overReason.innerHTML = reason === "river"
         ? `The bridge was in the center lane. You caught <strong>${state.caught}</strong> Pokémon.`
         : reason === "riverSide"
@@ -1270,7 +1244,7 @@
       state.riverFallTime += dt;
       state.animTime += dt;
       updateParticles(dt);
-      if (state.finishTime >= .82) endGame(false, "roadEnd");
+      if (state.finishTime >= 1.16) endGame(false, "roadEnd");
       return;
     }
     if (state.mode !== "playing") return;
@@ -1300,7 +1274,7 @@
 
     for (const item of state.worldItems) {
       item.z += travelSpeed * dt;
-      item.spin += dt * 3;
+      item.spin += dt * (item.kind === "ball" ? 5.6 + Math.max(0, item.z) * 3.2 : 3);
       const gap = item.z - state.playerZ;
       const previousGap = item.lastGap == null ? gap : item.lastGap;
       const crossedTrainerLine = previousGap < 0 && gap >= 0;
@@ -1921,14 +1895,19 @@
     creature.screenY = y - 45 * scale;
     creature.screenR = Math.max(48, 55 * scale + 22);
 
+    const turnPhase = Math.sin(creature.bob * .58 + creature.flightPhase);
+    const turnScale = .91 + Math.abs(turnPhase) * .09;
+    const bank = Math.sin(creature.bob * .72 + creature.flightPhase) * .055;
     ctx.save();
-    ctx.globalAlpha = .24;
+    ctx.globalAlpha = .18 + road.e * .09;
     ctx.fillStyle = "#0a4054";
-    ctx.beginPath(); ctx.ellipse(x, road.y + 2, 34 * scale, 9 * scale, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + turnPhase * 5 * scale, road.y + 3, 36 * scale * turnScale, 9 * scale, bank, 0, TAU); ctx.fill();
     ctx.restore();
 
     ctx.save();
     ctx.translate(x, y);
+    ctx.rotate(bank);
+    ctx.transform(turnScale, 0, turnPhase * .045, 1, 0, 0);
     ctx.scale(scale, scale);
     const selected = state.selected === creature;
     ctx.strokeStyle = selected ? "#6ef08a" : "rgba(235,252,255,.78)";
@@ -2181,15 +2160,36 @@
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rotation);
-    ctx.shadowColor = "rgba(15,54,63,.25)";
-    ctx.shadowBlur = radius * .45;
-    ctx.shadowOffsetY = radius * .28;
-    const topColors = { poke: "#ed4747", great: "#3978ca", ultra: "#252d37", master: "#8759b5" };
-    ctx.fillStyle = topColors[type] || topColors.poke;
-    ctx.beginPath(); ctx.arc(0, 0, radius, Math.PI, 0); ctx.lineTo(-radius, 0); ctx.fill();
-    ctx.fillStyle = "white";
-    ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI); ctx.lineTo(-radius, 0); ctx.fill();
+    ctx.shadowColor = "rgba(9,39,49,.34)";
+    ctx.shadowBlur = radius * .62;
+    ctx.shadowOffsetY = radius * .34;
+    ctx.fillStyle = "#d9e2e4";
+    ctx.beginPath(); ctx.arc(0, 0, radius, 0, TAU); ctx.fill();
     ctx.shadowColor = "transparent";
+
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, 0, radius, 0, TAU); ctx.clip();
+    const topColors = {
+      poke: ["#ff7772", "#e63e43", "#8f202c"],
+      great: ["#6aa8ef", "#2f72c7", "#17477f"],
+      ultra: ["#56616a", "#222a32", "#090d11"],
+      master: ["#b985df", "#7c4bad", "#472766"]
+    };
+    const palette = topColors[type] || topColors.poke;
+    const topShell = ctx.createRadialGradient(-radius * .42, -radius * .58, radius * .04, 0, -radius * .12, radius * 1.16);
+    topShell.addColorStop(0, palette[0]);
+    topShell.addColorStop(.58, palette[1]);
+    topShell.addColorStop(1, palette[2]);
+    ctx.fillStyle = topShell;
+    ctx.fillRect(-radius, -radius, radius * 2, radius);
+
+    const lowerShell = ctx.createRadialGradient(-radius * .38, radius * .18, radius * .05, 0, radius * .18, radius * 1.18);
+    lowerShell.addColorStop(0, "#ffffff");
+    lowerShell.addColorStop(.58, "#f1f3ef");
+    lowerShell.addColorStop(1, "#9eafb4");
+    ctx.fillStyle = lowerShell;
+    ctx.fillRect(-radius, 0, radius * 2, radius);
+
     if (type === "great") {
       ctx.fillStyle = "#ef4d50";
       ctx.beginPath(); ctx.arc(-radius * .42, -radius * .48, radius * .16, 0, TAU); ctx.fill();
@@ -2210,9 +2210,35 @@
         ctx.fillText("M", 0, -radius * .46);
       }
     }
-    ctx.fillStyle = "#183945"; ctx.fillRect(-radius, -radius * .12, radius * 2, radius * .24);
-    ctx.fillStyle = "white"; ctx.strokeStyle = "#183945"; ctx.lineWidth = Math.max(2, radius * .15);
-    ctx.beginPath(); ctx.arc(0, 0, radius * .27, 0, TAU); ctx.fill(); ctx.stroke();
+
+    const edgeShade = ctx.createRadialGradient(-radius * .38, -radius * .48, radius * .12, 0, 0, radius * 1.18);
+    edgeShade.addColorStop(0, "rgba(7,34,43,0)");
+    edgeShade.addColorStop(.68, "rgba(7,34,43,0)");
+    edgeShade.addColorStop(1, "rgba(7,34,43,.42)");
+    ctx.fillStyle = edgeShade;
+    ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+
+    ctx.fillStyle = "#183945";
+    ctx.fillRect(-radius, -radius * .13, radius * 2, radius * .26);
+    ctx.fillStyle = "#f9ffff";
+    ctx.strokeStyle = "#183945";
+    ctx.lineWidth = Math.max(2, radius * .15);
+    ctx.beginPath(); ctx.arc(0, 0, radius * .29, 0, TAU); ctx.fill(); ctx.stroke();
+    const buttonGlow = ctx.createRadialGradient(-radius * .07, -radius * .08, 0, 0, 0, radius * .23);
+    buttonGlow.addColorStop(0, "#ffffff");
+    buttonGlow.addColorStop(1, "#cfe5ea");
+    ctx.fillStyle = buttonGlow;
+    ctx.beginPath(); ctx.arc(0, 0, radius * .17, 0, TAU); ctx.fill();
+
+    ctx.fillStyle = "rgba(255,255,255,.64)";
+    ctx.beginPath();
+    ctx.ellipse(-radius * .34, -radius * .49, radius * .25, radius * .11, -.52, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = "rgba(14,43,52,.86)";
+    ctx.lineWidth = Math.max(1.5, radius * .075);
+    ctx.beginPath(); ctx.arc(0, 0, radius - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
     ctx.restore();
   }
 
@@ -2305,8 +2331,16 @@
       const road = roadGeometry(item.z);
       const x = laneX(item.lane, item.z);
       const scale = .12 + road.e * 1.14;
-      if (item.kind === "ball") drawPokeball(x, road.y - 18 * scale, 18 * scale, item.spin, item.ballType || "poke");
-      else drawObstacle(item, x, road.y, scale);
+      if (item.kind === "ball") {
+        const rollLift = Math.abs(Math.sin(item.spin)) * (1.3 + road.e * 3.4) * scale;
+        ctx.save();
+        ctx.fillStyle = `rgba(16,48,40,${.12 + road.e * .15})`;
+        ctx.beginPath();
+        ctx.ellipse(x + 3 * scale, road.y + 2, 16 * scale * (1 - rollLift * .018), 5 * scale, 0, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+        drawPokeball(x, road.y - 18 * scale - rollLift, 18 * scale, item.spin, item.ballType || "poke");
+      } else drawObstacle(item, x, road.y, scale);
     }
   }
 
@@ -2322,6 +2356,8 @@
     const rawX = creature.side < 0 ? road.left - width * creature.offset * (.38 + road.e * 1.10) : road.right + width * creature.offset * (.38 + road.e * 1.10);
     const x = Math.max(52, Math.min(width - 52, rawX));
     const wiggle = Math.sin(creature.bob * 1.35);
+    const turnPhase = Math.sin(creature.bob * .58 + creature.dex * .17);
+    const turnScale = .91 + Math.abs(turnPhase) * .09;
     const bounce = Math.abs(Math.sin(creature.bob)) * (2 + road.e * 5);
     const y = road.y - bounce;
     const poseX = x + wiggle * (2 + road.e * 4);
@@ -2333,7 +2369,7 @@
     ctx.globalAlpha = .18 + road.e * .14;
     ctx.fillStyle = "#234d35";
     ctx.beginPath();
-    ctx.ellipse(poseX + 5 * scale, road.y + 2, 38 * scale, 10 * scale * (1 - bounce*.025), 0, 0, TAU);
+    ctx.ellipse(poseX + 5 * scale + turnPhase * 3, road.y + 2, 38 * scale * turnScale, 10 * scale * (1 - bounce*.025), wiggle * .02, 0, TAU);
     ctx.fill();
     ctx.restore();
 
@@ -2357,7 +2393,8 @@
 
     ctx.save();
     ctx.translate(poseX, y);
-    ctx.rotate(wiggle * .035);
+    ctx.rotate(wiggle * .045);
+    ctx.transform(turnScale, 0, turnPhase * .04, 1, 0, 0);
     ctx.scale(scale, scale);
     const selected = state.selected === creature;
     const pulse = 4 + Math.sin(creature.bob * 1.7) * 3;
@@ -2456,16 +2493,24 @@
 
   function drawTrainer() {
     const player = trainerScreenPosition();
-    const x = player.x;
+    const baseX = player.x;
     const y = player.y;
     const roadEndFall = state.fallReason === "roadEnd";
-    const fallProgress = state.riverFall ? Math.min(1, state.riverFallTime / (roadEndFall ? .78 : .43)) : 0;
-    const fallTilt = state.fallSide * fallProgress * .42;
-    const fallDrop = fallProgress * (roadEndFall ? height * .23 : 22);
+    const fallProgress = state.riverFall ? Math.min(1, state.riverFallTime / (roadEndFall ? 1.12 : .98)) : 0;
+    const fallEase = fallProgress * fallProgress;
+    const tumbleEase = fallProgress * fallProgress * (3 - 2 * fallProgress);
+    const fallDirection = state.fallSide || (roadEndFall ? .45 : .2);
+    const fallTilt = fallDirection * (tumbleEase * 1.32 + Math.sin(fallProgress * Math.PI * 2.4) * .14);
+    const fallDrop = fallEase * (roadEndFall ? height * .50 : height * .42);
+    const fallSlide = fallDirection * tumbleEase * (roadEndFall ? width * .08 : width * .15);
+    const fallScale = 1 - tumbleEase * (roadEndFall ? .34 : .20);
+    const fallStretchX = 1 + Math.sin(fallProgress * Math.PI) * .10;
+    const fallOpacity = 1 - Math.max(0, fallProgress - .82) / .18 * .5;
+    const x = baseX + fallSlide;
     const depthScale = .62 + player.road.e * .48;
     const s = Math.max(.66, Math.min(1.12, height / 760)) * depthScale;
     const walkRate = 5.2 + state.forwardBoost * 1.6;
-    const frameFloat = state.animTime * walkRate;
+    const frameFloat = state.riverFall ? 1.25 + fallProgress * 1.4 : state.animTime * walkRate;
     const frame = Math.floor(frameFloat) % 4;
     const nextFrame = (frame + 1) % 4;
     const frameProgress = frameFloat - Math.floor(frameFloat);
@@ -2473,7 +2518,40 @@
     const frameBlend = blendProgress * blendProgress * (3 - 2 * blendProgress);
     const walkPhase = frameFloat * TAU / 4;
     const run = Math.sin(walkPhase);
-    const bodyBob = (1 - Math.cos(walkPhase * 2)) * .45 * s;
+    const bodyBob = state.riverFall ? 0 : (1 - Math.cos(walkPhase * 2)) * .45 * s;
+
+    if (state.riverFall) {
+      // The contact shadow stays on the road while Aaron separates from it.
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, .24 * (1 - fallProgress * 1.15));
+      ctx.fillStyle = "#173f37";
+      ctx.beginPath();
+      ctx.ellipse(baseX, y + 5, 34 * s * (1 - tumbleEase * .42), 9 * s * (1 - tumbleEase * .5), 0, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+
+      // Short speed trails make the accelerating drop readable at a glance.
+      ctx.save();
+      ctx.lineCap = "round";
+      for (let index = 0; index < 4; index++) {
+        const trailProgress = Math.max(0, fallProgress - index * .055);
+        if (!trailProgress) continue;
+        ctx.globalAlpha = (1 - fallProgress) * (.24 - index * .038);
+        ctx.strokeStyle = index % 2 ? "#dff8ee" : "#fff1a4";
+        ctx.lineWidth = Math.max(1.5, (5 - index) * s);
+        ctx.beginPath();
+        ctx.moveTo(baseX - fallDirection * (9 + index * 7), y - 92 * s + index * 29 * s);
+        ctx.quadraticCurveTo(
+          baseX - fallDirection * (26 + index * 10),
+          y - 55 * s + fallDrop * .35,
+          x - fallDirection * (34 + index * 13),
+          y - 22 * s + fallDrop * .72
+        );
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     if (trainerWalkSheet.complete && trainerWalkSheet.naturalWidth) {
       const cellWidth = trainerWalkSheet.naturalWidth / 2;
       const cellHeight = trainerWalkSheet.naturalHeight / 2;
@@ -2482,18 +2560,22 @@
       ctx.save();
       ctx.translate(x, y - bodyBob + fallDrop);
       ctx.rotate(fallTilt);
+      ctx.scale(fallScale * fallStretchX, fallScale);
       const baseAlpha = state.invulnerable > 0 && Math.floor(state.invulnerable * 12) % 2 ? .38 : 1;
-      ctx.fillStyle = "rgba(33,65,48,.24)";
-      ctx.beginPath();
-      ctx.ellipse(0, 4 + bodyBob, imageWidth * (.285 + Math.cos(walkPhase * 2) * .008), 10 * s, 0, 0, TAU);
-      ctx.fill();
+      ctx.globalAlpha = fallOpacity;
+      if (!state.riverFall) {
+        ctx.fillStyle = "rgba(33,65,48,.24)";
+        ctx.beginPath();
+        ctx.ellipse(0, 4 + bodyBob, imageWidth * (.285 + Math.cos(walkPhase * 2) * .008), 10 * s, 0, 0, TAU);
+        ctx.fill();
+      }
       ctx.shadowColor = "rgba(12,45,54,.34)";
       ctx.shadowBlur = 12;
       ctx.shadowOffsetY = 6;
 
       const drawWalkFrame = (frameIndex, alpha) => {
         const anchor = trainerFrameAnchors[frameIndex];
-        ctx.globalAlpha = baseAlpha * alpha;
+        ctx.globalAlpha = baseAlpha * alpha * fallOpacity;
         ctx.drawImage(
           trainerWalkSheet,
           (frameIndex % 2) * cellWidth,
@@ -2511,9 +2593,10 @@
       ctx.restore();
       return;
     }
-    ctx.save(); ctx.translate(x, y + fallDrop); ctx.rotate(fallTilt); ctx.scale(s,s);
+    ctx.save(); ctx.translate(x, y + fallDrop); ctx.rotate(fallTilt); ctx.scale(s * fallScale * fallStretchX, s * fallScale);
+    ctx.globalAlpha = fallOpacity;
     if (state.invulnerable > 0 && Math.floor(state.invulnerable * 12) % 2) ctx.globalAlpha = .38;
-    ctx.fillStyle="rgba(33,65,48,.22)";ctx.beginPath();ctx.ellipse(0,8,39,11,0,0,TAU);ctx.fill();
+    if (!state.riverFall) { ctx.fillStyle="rgba(33,65,48,.22)";ctx.beginPath();ctx.ellipse(0,8,39,11,0,0,TAU);ctx.fill(); }
     ctx.strokeStyle="#284b61";ctx.lineWidth=13;ctx.lineCap="round";
     ctx.beginPath();ctx.moveTo(-8,-36);ctx.lineTo(-14+run*4,0);ctx.stroke();ctx.beginPath();ctx.moveTo(8,-36);ctx.lineTo(15-run*4,0);ctx.stroke();
     ctx.fillStyle="#f4f0e6";ctx.beginPath();ctx.ellipse(-15+run*4,3,13,6,0,0,TAU);ctx.ellipse(16-run*4,3,13,6,0,0,TAU);ctx.fill();
@@ -2740,7 +2823,6 @@
   window.addEventListener("blur", () => { if (state.mode === "playing") togglePause(); });
 
   updateCustomDifficulty();
-  randomizeTitlePokemon();
   setCustomControlsVisible(false);
   resize();
   seedWorld();

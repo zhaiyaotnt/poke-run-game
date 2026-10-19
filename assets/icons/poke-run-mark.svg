@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Poké Run</title>
+  <desc id="description">A capture orb racing along a bright road through a blue adventure badge.</desc>
+  <defs>
+    <linearGradient id="sky" x1="54" y1="30" x2="449" y2="482" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#49BFEA"/>
+      <stop offset=".52" stop-color="#217BC7"/>
+      <stop offset="1" stop-color="#123F66"/>
+    </linearGradient>
+    <linearGradient id="road" x1="114" y1="434" x2="369" y2="101" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#183945"/>
+      <stop offset="1" stop-color="#315E71"/>
+    </linearGradient>
+    <radialGradient id="orbRed" cx="0" cy="0" r="1" gradientTransform="translate(214 185) rotate(49) scale(151)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7770"/>
+      <stop offset=".52" stop-color="#EF4545"/>
+      <stop offset="1" stop-color="#9E252F"/>
+    </radialGradient>
+    <radialGradient id="orbWhite" cx="0" cy="0" r="1" gradientTransform="translate(206 230) rotate(48) scale(143)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".62" stop-color="#F4F3E9"/>
+      <stop offset="1" stop-color="#BFCBD0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="15" flood-color="#082B42" flood-opacity=".42"/>
+    </filter>
+  </defs>
+
+  <rect x="18" y="18" width="476" height="476" rx="116" fill="url(#sky)"/>
+  <path d="M58 367C129 332 148 294 170 243C197 181 249 134 410 69" fill="none" stroke="#8BE16E" stroke-width="92" stroke-linecap="round" opacity=".92"/>
+  <path d="M75 431C147 367 174 315 198 261C226 199 278 151 427 91" fill="none" stroke="url(#road)" stroke-width="89" stroke-linecap="round"/>
+  <path d="M83 420C151 359 181 309 204 257C232 195 284 148 420 94" fill="none" stroke="#FFD52D" stroke-width="12" stroke-linecap="round" stroke-dasharray="38 31"/>
+
+  <path d="M54 171H155" stroke="#FFF7D0" stroke-width="18" stroke-linecap="round" opacity=".92"/>
+  <path d="M45 219H133" stroke="#FFF7D0" stroke-width="12" stroke-linecap="round" opacity=".72"/>
+  <path d="M70 265H126" stroke="#FFF7D0" stroke-width="8" stroke-linecap="round" opacity=".55"/>
+
+  <g filter="url(#shadow)" transform="translate(271 237) rotate(-18)">
+    <circle r="112" fill="url(#orbWhite)" stroke="#183945" stroke-width="15"/>
+    <path d="M-103 0A103 103 0 0 1 103 0Z" fill="url(#orbRed)"/>
+    <path d="M-106 0H106" stroke="#183945" stroke-width="25"/>
+    <circle r="31" fill="#FFF" stroke="#183945" stroke-width="13"/>
+    <circle r="12" fill="#DFF7FF"/>
+    <ellipse cx="-37" cy="-54" rx="25" ry="13" transform="rotate(-24 -37 -54)" fill="#FFF" opacity=".62"/>
+  </g>
+
+  <path d="M338 355L367 385L426 315" fill="none" stroke="#FFD52D" stroke-width="23" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
