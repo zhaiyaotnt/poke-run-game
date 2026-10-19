@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=26" />
+    <link rel="stylesheet" href="styles.css?v=27" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -126,6 +126,10 @@
         <div class="eyebrow">TEAM COMPLETE</div>
         <h2>Dream team!</h2>
         <p>You caught all 15 Pokémon. What a run!</p>
+        <div class="caught-summary">
+          <span>CAUGHT THIS RUN</span>
+          <div class="caught-gallery" aria-label="Pokémon caught this run"></div>
+        </div>
         <div class="result-actions">
           <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
           <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
@@ -133,10 +137,14 @@
       </section>
 
       <section id="effortScreen" class="overlay result-screen hidden" aria-hidden="true">
-        <div class="result-orb effort-orb">✓</div>
-        <div class="eyebrow">FINISH LINE</div>
+        <div class="result-orb effort-orb">↘</div>
+        <div class="eyebrow">END OF ROAD</div>
         <h2>Good effort!</h2>
-        <p>You reached the finish with <strong id="effortCaught">0</strong> Pokémon. Catch 15 to complete the team.</p>
+        <p>You reached the end of the road with <strong id="effortCaught">0</strong> Pokémon. Catch 15 to complete the team.</p>
+        <div class="caught-summary">
+          <span>CAUGHT THIS RUN</span>
+          <div class="caught-gallery" aria-label="Pokémon caught this run"></div>
+        </div>
         <div class="result-actions">
           <button class="primary-button restart-button" type="button"><span>RUN AGAIN</span><b>↻</b></button>
           <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
@@ -148,6 +156,10 @@
         <div class="eyebrow">THE ROUTE GOT TOUGH</div>
         <h2 id="gameOverTitle">Nice try, Trainer.</h2>
         <p id="gameOverReason">You caught <strong id="finalCaught">0</strong> Pokémon this run.</p>
+        <div class="caught-summary">
+          <span>CAUGHT THIS RUN</span>
+          <div class="caught-gallery" aria-label="Pokémon caught this run"></div>
+        </div>
         <div class="result-actions">
           <button class="primary-button restart-button" type="button"><span>TRY AGAIN</span><b>↻</b></button>
           <button class="secondary-button menu-button" type="button">CHANGE MODE</button>
@@ -157,7 +169,7 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=26"></script>
+    <script src="game.js?v=27"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "poke-run-broken-lanes-v26";
+const CACHE_NAME = "poke-run-end-of-road-v27";
 
 const CORE_ASSETS = [
   "./",
