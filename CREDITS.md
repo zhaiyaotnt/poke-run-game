@@ -7,6 +7,7 @@ This is a private, non-commercial fan prototype and is not affiliated with or en
 - Trainer reference: Pokémon GO male protagonist artwork archived by Bulbagarden — https://archives.bulbagarden.net/wiki/File:GO_protagonist_male.png
 - Rear-view trainer sprite: project-local derivative created from the trainer reference for this prototype.
 - Four-pose rear walk sheet: project-local derivative created from the rear-view trainer sprite for smoother animation.
+- Female four-pose rear walk sheet (Amelia player option): project-local derivative in the same style as the male walk sheet.
 - Pokémon, Pokémon character names, and related artwork are trademarks and copyrighted properties of their respective owners.
 
 Do not redistribute the included character artwork without confirming the relevant rights and permissions.

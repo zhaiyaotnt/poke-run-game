@@ -219,7 +219,11 @@
     }
     return image;
   }
-  const trainerWalkSheet = loadImage("assets/trainer/go-protagonist-walk-sheet.png");
+  const trainerWalkSheets = {
+    aaron: loadImage("assets/trainer/go-protagonist-walk-sheet.png"),
+    amelia: loadImage("assets/trainer/go-protagonist-female-walk-sheet.png")
+  };
+  let trainerWalkSheet = trainerWalkSheets[PLAYERS[savedPlayer] ? savedPlayer : "aaron"];
   const trainerBackPose = loadImage("assets/trainer/go-protagonist-back-3d.png");
   const trainerFrontPose = loadImage("assets/trainer/go-protagonist-male.png");
   const meadowBackdrop = loadImage("assets/environment/alpine-meadow-ground-v2.jpg");
@@ -273,6 +277,18 @@
 
   if (trainerWalkSheet.complete && trainerWalkSheet.naturalWidth) calibrateTrainerFrames();
   else trainerWalkSheet.addEventListener("load", calibrateTrainerFrames, { once: true });
+
+  function syncTrainerWalkSheet() {
+    const sheet = trainerWalkSheets[state.player] || trainerWalkSheets.aaron;
+    if (sheet === trainerWalkSheet) {
+      if (sheet.complete && sheet.naturalWidth) calibrateTrainerFrames();
+      return;
+    }
+    trainerWalkSheet = sheet;
+    for (let frame = 0; frame < 4; frame++) trainerFrameAnchors[frame] = { centerX: .5, bottom: 1 };
+    if (sheet.complete && sheet.naturalWidth) calibrateTrainerFrames();
+    else sheet.addEventListener("load", calibrateTrainerFrames, { once: true });
+  }
 
   const DIFFICULTIES = {
     explorer: {
@@ -3016,6 +3032,7 @@
     if (!PLAYERS[player]) return;
     state.player = player;
     savePreference(PREFERENCE_KEYS.player, player);
+    syncTrainerWalkSheet();
     syncSetupControls();
     updateHUD();
   }));
@@ -3050,6 +3067,7 @@
   updateCustomDifficulty();
   randomizeTitlePokemon();
   syncSetupControls();
+  syncTrainerWalkSheet();
   showSetupStep("player");
   resize();
   seedWorld();

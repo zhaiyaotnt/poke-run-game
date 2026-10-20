@@ -1,4 +1,4 @@
-const CACHE_NAME = "poke-run-two-step-setup-v32";
+const CACHE_NAME = "poke-run-two-step-setup-v33";
 
 const CORE_ASSETS = [
   "./",
@@ -16,7 +16,8 @@ const CORE_ASSETS = [
   "./assets/pokemon-3d/150.png",
   "./assets/trainer/go-protagonist-back-3d.png",
   "./assets/trainer/go-protagonist-male.png",
-  "./assets/trainer/go-protagonist-walk-sheet.png"
+  "./assets/trainer/go-protagonist-walk-sheet.png",
+  "./assets/trainer/go-protagonist-female-walk-sheet.png"
 ];
 
 const LATER_DEX = [
