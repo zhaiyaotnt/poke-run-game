@@ -188,9 +188,10 @@ button { font: inherit; }
   pointer-events: auto;
   transition: opacity .2s, transform .2s, box-shadow .2s;
 }
+.throw-pad.stocked { opacity: 1; box-shadow: 0 10px 34px rgba(12,48,60,.24), inset 0 0 0 4px rgba(255,255,255,.08), 0 0 0 3px rgba(255,210,74,.85), 0 0 22px rgba(255,210,74,.55); }
 .throw-pad.ready { opacity: 1; animation: readyPulse 1.6s ease-in-out infinite; }
 .throw-pad.too-far { box-shadow: 0 10px 30px rgba(12,48,60,.2), inset 0 0 0 5px rgba(255,210,74,.38); }
-.throw-pad.empty { opacity: .52; filter: grayscale(.35); }
+.throw-pad.empty { opacity: .3; filter: grayscale(.9) brightness(.6); }
 .throw-pad.dragging { transform: translateY(2px) scale(.93); animation: none; }
 .throw-pad:active { transform: translateY(2px) scale(.94); animation: none; }
 .throw-ball { position: absolute; width: 44px; height: 44px; left: 16px; top: 8px; border-width: 3px; }
@@ -278,7 +279,7 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
 .result-screen p { margin: 15px 0 17px; }
 .caught-summary { width: min(430px, 90vw); margin-bottom: 20px; }
 .caught-summary > span { display: block; margin-bottom: 8px; color: rgba(255,255,255,.72); font-size: 9px; font-weight: 900; letter-spacing: .14em; }
-.caught-gallery { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; min-height: 66px; }
+.caught-gallery { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; min-height: 66px; max-height: 206px; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; padding-right: 2px; }
 .caught-pokemon { display: grid; grid-template-rows: 50px 13px; place-items: center; min-width: 0; margin: 0; }
 .caught-pokemon img { display: block; width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(2,20,27,.34)); }
 .caught-pokemon figcaption { overflow: hidden; width: 100%; color: rgba(255,255,255,.9); font-size: 7px; font-weight: 900; letter-spacing: .01em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }

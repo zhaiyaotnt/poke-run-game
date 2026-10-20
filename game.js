@@ -105,6 +105,68 @@
     catch (error) { /* The game still works when storage is unavailable. */ }
   }
 
+  const RUN_SNAPSHOT_KEY = "poke-run-run-snapshot-v1";
+
+  function saveRunSnapshot() {
+    if (state.mode !== "playing" && state.mode !== "paused") return;
+    try {
+      localStorage.setItem(RUN_SNAPSHOT_KEY, JSON.stringify({
+        player: state.player,
+        gameMode: state.gameMode,
+        difficulty: state.difficulty,
+        custom: {
+          speed: ui.customSpeed.value, obstacles: ui.customObstacles.value,
+          balls: ui.customBalls.value, pokemon: ui.customPokemon.value,
+          routeLength: ui.customRouteLength.value
+        },
+        score: state.score, pokemonPoints: state.pokemonPoints, ballPoints: state.ballPoints,
+        caught: state.caught, caughtPokemon: state.caughtPokemon,
+        health: state.health, balls: state.balls,
+        savedAt: Date.now()
+      }));
+    } catch (error) { /* The snapshot is best-effort. */ }
+  }
+
+  function clearRunSnapshot() {
+    try { localStorage.removeItem(RUN_SNAPSHOT_KEY); }
+    catch (error) { /* Nothing to clear. */ }
+  }
+
+  function readRunSnapshot() {
+    try {
+      const raw = localStorage.getItem(RUN_SNAPSHOT_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !PLAYERS[s.player]) return null;
+      if (s.gameMode !== "score" && s.gameMode !== "team") return null;
+      if (!(s.health >= 1 && s.health <= 3)) return null;
+      if (!Array.isArray(s.caughtPokemon) || !s.balls || typeof s.balls !== "object") return null;
+      if (!Number.isFinite(s.score) || !Number.isFinite(s.caught)) return null;
+      if (Date.now() - (s.savedAt || 0) > 12 * 60 * 60 * 1000) return null;
+      return s;
+    } catch (error) { return null; }
+  }
+
+  let pendingRunRestore = readRunSnapshot();
+
+  function applyRunSnapshotSettings() {
+    const s = pendingRunRestore;
+    if (!s) return;
+    if (!DIFFICULTIES[s.difficulty]) { pendingRunRestore = null; return; }
+    state.player = s.player;
+    state.gameMode = s.gameMode;
+    state.difficulty = s.difficulty;
+    if (s.custom) {
+      ui.customSpeed.value = s.custom.speed;
+      ui.customObstacles.value = s.custom.obstacles;
+      ui.customBalls.value = s.custom.balls;
+      ui.customPokemon.value = s.custom.pokemon;
+      ui.customRouteLength.value = s.custom.routeLength;
+      updateCustomDifficulty();
+    }
+    syncTrainerWalkSheet();
+  }
+
   const savedPlayer = readPreference(PREFERENCE_KEYS.player, "aaron");
   const savedRunMode = readPreference(PREFERENCE_KEYS.runMode, "team");
   // National Pokédex height values in meters, sourced from PokeAPI.
@@ -454,6 +516,7 @@
     crossings: [],
     creatures: [],
     particles: [],
+    floaters: [],
     pointer: null,
     gestureHandled: false,
     gestureCandidate: null,
@@ -933,6 +996,7 @@
   }
 
   function resetGame() {
+    applyRunSnapshotSettings();
     const difficulty = DIFFICULTIES[state.difficulty];
     Object.assign(state, {
       mode: "playing", lane: 0, visualLane: 0, arenaX: 0, visualArenaX: 0, playerZ: .89, visualZ: .89,
@@ -942,7 +1006,7 @@
       distance: 0, routeLength: difficulty.routeLength, sightingsSpawned: 0, sightingsResolved: 0,
       finishLineActive: false, finishLineZ: .04, finishLineLastGap: null,
       finishTime: 0, animTime: 0, forwardBoost: 0, selected: null, thrown: null, flash: 0, shake: 0,
-      invulnerable: 0, particles: [], pointer: null, gestureHandled: false, gestureCandidate: null,
+      invulnerable: 0, particles: [], floaters: [], pointer: null, gestureHandled: false, gestureCandidate: null,
       ballGestureStart: null, ballGestureCurrent: null, ballGestureHandled: false,
       riverFall: false, fallSide: 0, riverFallTime: 0, throwing: false, dragCurrent: null,
       inGym: false, gymsEntered: 0, gymSchedule: [
@@ -960,6 +1024,20 @@
     showToast(state.gameMode === "score"
       ? `${difficulty.label} • SCORE AS MUCH AS YOU CAN`
       : `${difficulty.label} MODE • CATCH ${WIN_TARGET}`);
+    if (pendingRunRestore) {
+      const s = pendingRunRestore;
+      pendingRunRestore = null;
+      state.score = s.score;
+      state.pokemonPoints = s.pokemonPoints;
+      state.ballPoints = s.ballPoints;
+      state.caught = s.caught;
+      state.caughtPokemon = s.caughtPokemon;
+      state.health = s.health;
+      state.balls = { ...s.balls };
+      state.ballType = lowestAvailableBall();
+      updateHUD();
+      showToast("INTERRUPTED RUN RESTORED • PROGRESS KEPT");
+    }
   }
 
   function hideAllOverlays() {
@@ -970,6 +1048,7 @@
   }
 
   function showMenu() {
+    clearRunSnapshot();
     state.mode = "intro";
     state.selected = null;
     state.ballType = lowestAvailableBall();
@@ -1021,6 +1100,7 @@
     ui.throwPad.classList.toggle("ready", !!ready);
     ui.throwPad.classList.toggle("too-far", !!state.selected && !inRange);
     ui.throwPad.classList.toggle("empty", ballCount <= 0);
+    ui.throwPad.classList.toggle("stocked", ballCount > 0);
     ui.targetChip.classList.toggle("show", !!state.selected);
     ui.targetChip.classList.toggle("too-far", !!state.selected && !inRange);
     ui.targetChip.classList.toggle("in-range", !!state.selected && inRange);
@@ -1138,6 +1218,7 @@
       state.mode = "paused";
       ui.pause.classList.remove("hidden");
       ui.pause.setAttribute("aria-hidden", "false");
+      saveRunSnapshot();
     } else if (state.mode === "paused") {
       state.mode = "playing";
       ui.pause.classList.add("hidden");
@@ -1155,6 +1236,7 @@
     const player = trainerScreenPosition();
     burst(player.x, player.y - 40, "#f3d08b", 14);
     updateHUD();
+    saveRunSnapshot();
     if (state.health <= 0) {
       setTimeout(() => endGame(false, "obstacle"), 350);
     } else {
@@ -1191,10 +1273,12 @@
       state.score += points;
     }
     burst(laneX(item.lane, item.z), roadGeometry(item.z).y, BALL_TYPES[type].pickupColor, 10);
+    spawnFloater(laneX(item.lane, item.z), roadGeometry(item.z).y - 42, `+${points}`, BALL_TYPES[type].pickupColor);
     showToast(state.gameMode === "score"
       ? `${BALL_TYPES[type].fullLabel} +1 • +${points} PTS`
       : `${BALL_TYPES[type].fullLabel} +1`);
     updateHUD();
+    saveRunSnapshot();
   }
 
   function selectCreature(creature) {
@@ -1232,6 +1316,7 @@
     state.thrown = { target, ballType: state.ballType, t: 0, startX: player.x, startY: player.y - 65 };
     state.throwing = true;
     updateHUD();
+    saveRunSnapshot();
   }
 
   function finishCatch(target) {
@@ -1244,11 +1329,13 @@
       state.pokemonPoints += points;
       state.score += points;
     }
+    spawnFloater(target.screenX, target.screenY - 34, `+${points}`, "#ffd52d");
     state.selected = null;
     state.thrown = null;
     state.throwing = false;
     state.ballType = lowestAvailableBall();
     updateHUD();
+    saveRunSnapshot();
     if (state.gameMode === "team" && state.caught >= WIN_TARGET) {
       showToast("TEAM COMPLETE!");
       endGame(true, "caught");
@@ -1262,6 +1349,7 @@
 
   function endGame(won, reason = "obstacle") {
     if (state.mode === "won" || state.mode === "effort" || state.mode === "over") return;
+    clearRunSnapshot();
     const scoreMode = state.gameMode === "score";
     const playerName = currentPlayer().name;
     const effort = !scoreMode && !won && reason === "roadEnd";
@@ -1327,7 +1415,7 @@
         gallery.appendChild(empty);
         continue;
       }
-      const recentPokemon = state.gameMode === "score" ? state.caughtPokemon.slice(-15) : state.caughtPokemon;
+      const recentPokemon = state.caughtPokemon;
       for (const pokemon of recentPokemon) {
         const figure = document.createElement("figure");
         figure.className = "caught-pokemon";
@@ -1388,6 +1476,45 @@
     updateHUD();
   }
 
+  function spawnFloater(x, y, text, color) {
+    state.floaters.push({ x, y, text, color, life: 0, ttl: .85 });
+    if (state.floaters.length > 6) state.floaters.shift();
+  }
+
+  function updateFloaters(dt) {
+    for (let i = state.floaters.length - 1; i >= 0; i--) {
+      const floater = state.floaters[i];
+      floater.life += dt;
+      floater.y -= 46 * dt;
+      if (floater.life >= floater.ttl) state.floaters.splice(i, 1);
+    }
+  }
+
+  function drawFloaters() {
+    if (!state.floaters.length) return;
+    const size = Math.max(17, Math.round(width * .027));
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `900 ${size}px Nunito, system-ui, sans-serif`;
+    for (const floater of state.floaters) {
+      const t = floater.life / floater.ttl;
+      const pop = floater.life < .14 ? .6 + (floater.life / .14) * .4 : 1;
+      ctx.globalAlpha = t < .55 ? 1 : 1 - (t - .55) / .45;
+      ctx.save();
+      ctx.translate(floater.x, floater.y);
+      ctx.scale(pop, pop);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = "rgba(8,38,48,.88)";
+      ctx.strokeText(floater.text, 0, 0);
+      ctx.fillStyle = floater.color;
+      ctx.fillText(floater.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   function updateParticles(dt) {
     for (let i = state.particles.length - 1; i >= 0; i--) {
       const particle = state.particles[i];
@@ -1421,7 +1548,7 @@
       const previousGap = item.lastGap == null ? gap : item.lastGap;
       const crossedTrainerLine = previousGap < 0 && gap >= 0;
       item.lastGap = gap;
-      if (!item.hit && crossedTrainerLine && Math.abs(arenaDriftX(item) - state.arenaX) < .19) {
+      if (!item.hit && crossedTrainerLine && Math.abs(arenaDriftX(item) - state.visualArenaX) < .25) {
         item.hit = true;
         hitObstacle();
       }
@@ -1451,6 +1578,7 @@
       if (state.thrown.t >= 1) finishCatch(state.thrown.target);
     }
     updateParticles(dt);
+    updateFloaters(dt);
     ui.game.dataset.selectedDepth = state.selected ? state.selected.z.toFixed(3) : "none";
   }
 
@@ -1460,6 +1588,7 @@
       state.riverFallTime += dt;
       state.animTime += dt;
       updateParticles(dt);
+      updateFloaters(dt);
       if (state.finishTime >= 1.16) endGame(false, "roadEnd");
       return;
     }
@@ -1619,6 +1748,7 @@
     }
 
     updateParticles(dt);
+    updateFloaters(dt);
   }
 
   function roundedRect(x, y, w, h, r) {
@@ -2879,6 +3009,7 @@
     drawTrainer();
     drawThrow();
     drawParticles();
+    drawFloaters();
     drawDragGuide();
     if (state.flash > 0) {ctx.globalAlpha=state.flash*.8;ctx.fillStyle="#ff5454";ctx.fillRect(0,0,width,height);ctx.globalAlpha=1;}
     ctx.restore();
@@ -3063,6 +3194,7 @@
   document.querySelectorAll(".restart-button").forEach(button => button.addEventListener("click", resetGame));
   window.addEventListener("resize", resize);
   window.addEventListener("blur", () => { if (state.mode === "playing") togglePause(); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden && state.mode === "playing") togglePause(); });
 
   updateCustomDifficulty();
   randomizeTitlePokemon();
