@@ -140,6 +140,9 @@
           <button id="startButton" class="primary-button" type="button">
             <span>START RUN</span><b>→</b>
           </button>
+          <button id="resumeRunButton" class="secondary-button resume-run-button hidden" type="button">
+            <span>↩ RESUME LAST RUN • <b id="resumeRunSummary"></b></span>
+          </button>
           <div class="controls-note">
             <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> MOVE</span>
             <span><kbd>SPACE</kbd> THROW</span>
@@ -212,7 +215,7 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=34"></script>
+    <script src="game.js?v=35"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {

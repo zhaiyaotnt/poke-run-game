@@ -10,6 +10,8 @@
     effort: document.getElementById("effortScreen"),
     over: document.getElementById("gameOverScreen"),
     startButton: document.getElementById("startButton"),
+    resumeRun: document.getElementById("resumeRunButton"),
+    resumeRunSummary: document.getElementById("resumeRunSummary"),
     resumeButton: document.getElementById("resumeButton"),
     pauseButton: document.getElementById("pauseButton"),
     gymExitButton: document.getElementById("gymExitButton"),
@@ -148,6 +150,19 @@
   }
 
   let pendingRunRestore = readRunSnapshot();
+  let resumeArmed = false;
+
+  function refreshResumeButton() {
+    const s = pendingRunRestore;
+    if (!s) {
+      ui.resumeRun.classList.add("hidden");
+      return;
+    }
+    ui.resumeRunSummary.textContent = s.gameMode === "score"
+      ? `${s.score.toLocaleString()} PTS • ${s.caught} CAUGHT • ${s.health}\u2665`
+      : `${s.caught}/${WIN_TARGET} CAUGHT • ${s.health}\u2665`;
+    ui.resumeRun.classList.remove("hidden");
+  }
 
   function applyRunSnapshotSettings() {
     const s = pendingRunRestore;
@@ -996,6 +1011,11 @@
   }
 
   function resetGame() {
+    if (!resumeArmed) {
+      pendingRunRestore = null;
+      clearRunSnapshot();
+    }
+    resumeArmed = false;
     applyRunSnapshotSettings();
     const difficulty = DIFFICULTIES[state.difficulty];
     Object.assign(state, {
@@ -1049,6 +1069,8 @@
 
   function showMenu() {
     clearRunSnapshot();
+    pendingRunRestore = null;
+    refreshResumeButton();
     state.mode = "intro";
     state.selected = null;
     state.ballType = lowestAvailableBall();
@@ -3156,6 +3178,11 @@
   });
 
   ui.startButton.addEventListener("click", resetGame);
+  ui.resumeRun.addEventListener("click", () => {
+    if (!pendingRunRestore) return;
+    resumeArmed = true;
+    resetGame();
+  });
   ui.continueButton.addEventListener("click", () => showSetupStep("run"));
   ui.backToPlayers.addEventListener("click", () => showSetupStep("player"));
   ui.playerButtons.forEach(button => button.addEventListener("click", () => {
@@ -3200,6 +3227,7 @@
   randomizeTitlePokemon();
   syncSetupControls();
   syncTrainerWalkSheet();
+  refreshResumeButton();
   showSetupStep("player");
   resize();
   seedWorld();
