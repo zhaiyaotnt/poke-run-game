@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=31" />
+    <link rel="stylesheet" href="styles.css?v=32" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -66,73 +66,85 @@
       </button>
 
       <section id="startScreen" class="overlay start-screen">
-        <div class="eyebrow">9 GENERATIONS • 226 POKÉMON</div>
-        <div class="hero-title-lockup" aria-label="Poké Run">
-          <img id="titlePokemonLeft" class="title-pokemon" alt="" aria-hidden="true" />
-          <h1>POKÉ<br /><em>RUN</em></h1>
-          <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
+        <div id="playerStep" class="start-step player-step" aria-hidden="false">
+          <div class="eyebrow">9 GENERATIONS • 226 POKÉMON</div>
+          <div class="hero-title-lockup" aria-label="Poké Run">
+            <img id="titlePokemonLeft" class="title-pokemon" alt="" aria-hidden="true" />
+            <h1>POKÉ<br /><em>RUN</em></h1>
+            <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
+          </div>
+          <p>Who is heading out on today’s Pokémon adventure?</p>
+          <span class="setup-label">CHOOSE PLAYER</span>
+          <div class="player-picker" role="group" aria-label="Choose player">
+            <button type="button" data-player="aaron" aria-pressed="true">
+              <img src="assets/players/aaron-avatar.png" alt="Portrait of Aaron" />
+              <span>AARON</span>
+            </button>
+            <button type="button" data-player="amelia" aria-pressed="false">
+              <img src="assets/players/amelia-avatar.png" alt="Portrait of Amelia" />
+              <span>AMELIA</span>
+            </button>
+          </div>
+          <button id="continueButton" class="primary-button step-button" type="button">
+            <span>NEXT</span><b>→</b>
+          </button>
         </div>
-        <p>Move closer to bring Pokémon into range. Tap the ball to switch type, then swipe it upward to throw.</p>
-        <div class="setup-row">
-          <div class="setup-choice player-choice">
-            <span class="setup-label">PLAYER</span>
-            <div class="player-picker" role="group" aria-label="Choose player">
-              <button type="button" data-player="aaron" aria-pressed="true">
-                <img src="assets/players/aaron-avatar.png" alt="" />
-                <span>AARON</span>
-              </button>
-              <button type="button" data-player="amelia" aria-pressed="false">
-                <img src="assets/players/amelia-avatar.png" alt="" />
-                <span>AMELIA</span>
-              </button>
+
+        <div id="runStep" class="start-step run-step hidden" aria-hidden="true">
+          <div class="mode-step-header">
+            <button id="backToPlayers" class="back-button" type="button">← CHANGE PLAYER</button>
+            <div class="selected-player-chip">
+              <img id="selectedPlayerAvatar" src="assets/players/aaron-avatar.png" alt="" />
+              <span><small>RUNNING AS</small><strong id="selectedPlayerName">AARON</strong></span>
             </div>
           </div>
-          <div class="setup-choice run-choice">
-            <span class="setup-label">RUN TYPE</span>
-            <div class="run-mode-picker" role="group" aria-label="Choose run type">
-              <button type="button" data-run-mode="team" aria-pressed="true"><b>TEAM RUN</b><small>CATCH 15</small></button>
-              <button type="button" data-run-mode="score" aria-pressed="false"><b>HIGH SCORE</b><small>RUN FOREVER</small></button>
-            </div>
+          <div class="eyebrow">CHOOSE YOUR ADVENTURE</div>
+          <h2>Pick your run</h2>
+          <p>Choose a goal, then set how challenging the road should be.</p>
+          <span class="setup-label">RUN TYPE</span>
+          <div class="run-mode-picker" role="group" aria-label="Choose run type">
+            <button type="button" data-run-mode="team" aria-pressed="true"><b>TEAM RUN</b><small>CATCH 15 BEFORE THE ROAD ENDS</small></button>
+            <button type="button" data-run-mode="score" aria-pressed="false"><b>HIGH SCORE</b><small>SCORE UNTIL THE RUN ENDS</small></button>
           </div>
-        </div>
-        <span class="setup-label difficulty-label">DIFFICULTY</span>
-        <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
-          <button type="button" data-difficulty="explorer" aria-pressed="true">EXPLORER</button>
-          <button type="button" data-difficulty="trainer" aria-pressed="false">TRAINER</button>
-          <button type="button" data-difficulty="master" aria-pressed="false">MASTER</button>
-          <button type="button" data-difficulty="legend" aria-pressed="false">LEGEND</button>
-          <button type="button" data-difficulty="custom" aria-pressed="false">CUSTOM</button>
-        </div>
-        <div id="difficultyDescription" class="difficulty-note" aria-live="polite">Steady pace • 3 Poké + 1 Great + 1 Ultra • spaced hazards</div>
-        <div id="customControls" class="custom-controls hidden" aria-hidden="true">
-          <label class="custom-setting" for="customSpeed">
-            <span><b>SPEED</b><output id="customSpeedValue" for="customSpeed">100%</output></span>
-            <input id="customSpeed" type="range" min="60" max="180" step="10" value="100" />
-          </label>
-          <label class="custom-setting" for="customObstacles">
-            <span><b>OBSTACLES</b><output id="customObstaclesValue" for="customObstacles">5</output></span>
-            <input id="customObstacles" type="range" min="0" max="10" step="1" value="5" />
-          </label>
-          <label class="custom-setting" for="customBalls">
-            <span><b>BALLS</b><output id="customBallsValue" for="customBalls">5</output></span>
-            <input id="customBalls" type="range" min="1" max="10" step="1" value="5" />
-          </label>
-          <label class="custom-setting" for="customPokemon">
-            <span><b>POKÉMON ON SCREEN</b><output id="customPokemonValue" for="customPokemon">3</output></span>
-            <input id="customPokemon" type="range" min="1" max="6" step="1" value="3" />
-          </label>
-          <label class="custom-setting custom-setting-route" for="customRouteLength">
-            <span><b>ROUTE LENGTH</b><output id="customRouteLengthValue" for="customRouteLength">30 SIGHTINGS</output></span>
-            <input id="customRouteLength" type="range" min="20" max="40" step="1" value="30" />
-          </label>
-        </div>
-        <button id="startButton" class="primary-button" type="button">
-          <span>START RUN</span><b>→</b>
-        </button>
-        <div class="controls-note">
-          <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> MOVE</span>
-          <span><kbd>SPACE</kbd> THROW</span>
-          <span>SWIPE ROAD TO MOVE • TAP BALL TO SWITCH</span>
+          <span class="setup-label difficulty-label">DIFFICULTY</span>
+          <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
+            <button type="button" data-difficulty="explorer" aria-pressed="true">EXPLORER</button>
+            <button type="button" data-difficulty="trainer" aria-pressed="false">TRAINER</button>
+            <button type="button" data-difficulty="master" aria-pressed="false">MASTER</button>
+            <button type="button" data-difficulty="legend" aria-pressed="false">LEGEND</button>
+            <button type="button" data-difficulty="custom" aria-pressed="false">CUSTOM</button>
+          </div>
+          <div id="difficultyDescription" class="difficulty-note" aria-live="polite">Steady pace • 3 Poké + 1 Great + 1 Ultra • spaced hazards</div>
+          <div id="customControls" class="custom-controls hidden" aria-hidden="true">
+            <label class="custom-setting" for="customSpeed">
+              <span><b>SPEED</b><output id="customSpeedValue" for="customSpeed">100%</output></span>
+              <input id="customSpeed" type="range" min="60" max="180" step="10" value="100" />
+            </label>
+            <label class="custom-setting" for="customObstacles">
+              <span><b>OBSTACLES</b><output id="customObstaclesValue" for="customObstacles">5</output></span>
+              <input id="customObstacles" type="range" min="0" max="10" step="1" value="5" />
+            </label>
+            <label class="custom-setting" for="customBalls">
+              <span><b>BALLS</b><output id="customBallsValue" for="customBalls">5</output></span>
+              <input id="customBalls" type="range" min="1" max="10" step="1" value="5" />
+            </label>
+            <label class="custom-setting" for="customPokemon">
+              <span><b>POKÉMON ON SCREEN</b><output id="customPokemonValue" for="customPokemon">3</output></span>
+              <input id="customPokemon" type="range" min="1" max="6" step="1" value="3" />
+            </label>
+            <label class="custom-setting custom-setting-route" for="customRouteLength">
+              <span><b>ROUTE LENGTH</b><output id="customRouteLengthValue" for="customRouteLength">30 SIGHTINGS</output></span>
+              <input id="customRouteLength" type="range" min="20" max="40" step="1" value="30" />
+            </label>
+          </div>
+          <button id="startButton" class="primary-button" type="button">
+            <span>START RUN</span><b>→</b>
+          </button>
+          <div class="controls-note">
+            <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> MOVE</span>
+            <span><kbd>SPACE</kbd> THROW</span>
+            <span>SWIPE ROAD TO MOVE • TAP BALL TO SWITCH</span>
+          </div>
         </div>
       </section>
 
@@ -180,10 +192,12 @@
         <h2 id="gameOverTitle">Nice Try, Aaron!</h2>
         <p id="gameOverReason">You caught <strong id="finalCaught">0</strong> Pokémon this run.</p>
         <div id="scoreSummary" class="score-summary hidden" aria-label="Score breakdown">
-          <div><span>POKÉMON</span><strong id="pokemonPoints">0</strong></div>
-          <div><span>POKÉ BALLS</span><strong id="ballPoints">0</strong></div>
-          <div class="score-total"><span>TOTAL</span><strong id="totalScore">0</strong></div>
-          <div class="score-best"><span id="bestScoreLabel">BEST</span><strong id="bestScore">0</strong></div>
+          <div class="score-total"><span>TOTAL SCORE</span><strong id="totalScore">0</strong></div>
+          <div class="score-breakdown">
+            <div><span>POKÉMON</span><strong id="pokemonPoints">0</strong></div>
+            <div><span>POKÉ BALLS</span><strong id="ballPoints">0</strong></div>
+            <div class="score-best"><span id="bestScoreLabel">BEST</span><strong id="bestScore">0</strong></div>
+          </div>
         </div>
         <div class="caught-summary">
           <span id="gameOverCaughtLabel">CAUGHT THIS RUN</span>
@@ -198,12 +212,12 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=31"></script>
+    <script src="game.js?v=32"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {
           try {
-            await navigator.serviceWorker.register("./service-worker.js?v=31");
+            await navigator.serviceWorker.register("./service-worker.js?v=32");
             const registration = await navigator.serviceWorker.ready;
             registration.active?.postMessage({ type: "CACHE_FULL_ROSTER" });
           } catch (error) {

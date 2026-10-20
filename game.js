@@ -47,6 +47,12 @@
     caughtGalleries: [...document.querySelectorAll(".caught-gallery")],
     toast: document.getElementById("toast"),
     game: document.getElementById("game"),
+    playerStep: document.getElementById("playerStep"),
+    runStep: document.getElementById("runStep"),
+    continueButton: document.getElementById("continueButton"),
+    backToPlayers: document.getElementById("backToPlayers"),
+    selectedPlayerAvatar: document.getElementById("selectedPlayerAvatar"),
+    selectedPlayerName: document.getElementById("selectedPlayerName"),
     playerButtons: [...document.querySelectorAll("[data-player]")],
     runModeButtons: [...document.querySelectorAll("[data-run-mode]")],
     difficultyButtons: [...document.querySelectorAll("[data-difficulty]")],
@@ -494,10 +500,23 @@
     const startLabel = ui.startButton.querySelector("span");
     if (startLabel) startLabel.textContent = state.gameMode === "score" ? "START HIGH SCORE" : "START TEAM RUN";
     const playerName = currentPlayer().name;
+    ui.selectedPlayerAvatar.src = currentPlayer().avatar;
+    ui.selectedPlayerAvatar.alt = `Portrait of ${playerName}`;
+    ui.selectedPlayerName.textContent = playerName.toUpperCase();
     ui.winTitle.textContent = `You did it, ${playerName}!`;
     ui.effortTitle.textContent = `Good effort, ${playerName}!`;
     ui.overTitle.textContent = `Nice Try, ${playerName}!`;
     ui.difficultyDescription.textContent = difficultyDescription();
+  }
+
+  function showSetupStep(step = "player") {
+    const choosingPlayer = step === "player";
+    ui.playerStep.classList.toggle("hidden", !choosingPlayer);
+    ui.playerStep.setAttribute("aria-hidden", String(!choosingPlayer));
+    ui.runStep.classList.toggle("hidden", choosingPlayer);
+    ui.runStep.setAttribute("aria-hidden", String(choosingPlayer));
+    ui.start.dataset.step = choosingPlayer ? "player" : "run";
+    setCustomControlsVisible(!choosingPlayer && state.difficulty === "custom");
   }
 
   function resize() {
@@ -955,7 +974,7 @@
     ui.start.setAttribute("aria-hidden", "false");
     randomizeTitlePokemon();
     syncSetupControls();
-    setCustomControlsVisible(state.difficulty === "custom");
+    showSetupStep("run");
     ui.difficultyDescription.textContent = difficultyDescription();
     updateHUD();
   }
@@ -1242,7 +1261,11 @@
     ui.overOrb.textContent = scoreMode ? "★" : "×";
     ui.overOrb.classList.toggle("score-orb", scoreMode);
     ui.overOrb.classList.toggle("lose-orb", !scoreMode);
-    ui.overCaughtLabel.textContent = scoreMode ? "RECENT CATCHES" : "CAUGHT THIS RUN";
+    ui.overCaughtLabel.textContent = scoreMode
+      ? state.caught > 15
+        ? `POKÉMON CAUGHT • ${state.caught} • LATEST 15`
+        : `POKÉMON CAUGHT • ${state.caught}`
+      : "CAUGHT THIS RUN";
     renderCaughtGalleries();
     if (scoreMode) {
       const previousBest = getBestScore();
@@ -2986,6 +3009,8 @@
   });
 
   ui.startButton.addEventListener("click", resetGame);
+  ui.continueButton.addEventListener("click", () => showSetupStep("run"));
+  ui.backToPlayers.addEventListener("click", () => showSetupStep("player"));
   ui.playerButtons.forEach(button => button.addEventListener("click", () => {
     const player = button.dataset.player;
     if (!PLAYERS[player]) return;
@@ -3025,7 +3050,7 @@
   updateCustomDifficulty();
   randomizeTitlePokemon();
   syncSetupControls();
-  setCustomControlsVisible(false);
+  showSetupStep("player");
   resize();
   seedWorld();
   updateHUD();
