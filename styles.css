@@ -67,6 +67,7 @@ button { font: inherit; }
 .progress-copy strong { font-family: "Baloo 2", sans-serif; font-size: 20px; line-height: 1; letter-spacing: 0; }
 .progress-track { height: 9px; padding: 2px; border-radius: 10px; background: rgba(11, 49, 60, .28); box-shadow: inset 0 1px 2px rgba(0,0,0,.2); }
 .progress-track span { display: block; width: 0; height: 100%; border-radius: 8px; background: var(--yellow); box-shadow: 0 0 10px rgba(255,213,45,.65); transition: width .45s cubic-bezier(.2,.9,.2,1.15); }
+.game[data-run-mode="score"] .progress-track span { background: linear-gradient(90deg, var(--yellow), #ff8d4d); }
 
 .resources { display: flex; align-items: center; justify-content: flex-end; gap: 20px; }
 .hearts { display: flex; gap: 5px; font-size: 25px; color: #ff5a60; -webkit-text-stroke: 2px white; paint-order: stroke fill; filter: drop-shadow(0 3px 0 rgba(71,42,42,.2)); }
@@ -224,6 +225,23 @@ button { font: inherit; }
 .overlay h1 em { color: var(--yellow); font-style: normal; }
 .overlay h2 { font-size: clamp(52px, 7vw, 92px); }
 .overlay p { width: min(440px, 90vw); margin: 24px 0; font-size: clamp(15px, 1.4vw, 19px); line-height: 1.55; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.start-screen > p { margin: 10px 0 12px; font-size: clamp(12px, 1.05vw, 15px); }
+.setup-row { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr); gap: 12px; width: min(560px, 90vw); margin-bottom: 8px; }
+.setup-choice { min-width: 0; }
+.setup-label { display: block; margin: 0 0 4px 4px; color: rgba(255,255,255,.72); font-size: 8px; font-weight: 900; letter-spacing: .18em; }
+.difficulty-label { width: min(560px, 90vw); }
+.player-picker, .run-mode-picker { display: grid; padding: 3px; border: 1px solid rgba(255,255,255,.36); border-radius: 14px; background: rgba(8,44,55,.3); backdrop-filter: blur(8px); }
+.player-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.run-mode-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.player-picker button, .run-mode-picker button { min-width: 0; border: 0; border-radius: 10px; color: rgba(255,255,255,.74); background: transparent; cursor: pointer; transition: color .18s ease, background .18s ease, transform .18s ease; }
+.player-picker button { display: flex; align-items: center; gap: 5px; min-height: 48px; padding: 3px 7px 3px 3px; font-size: 10px; font-weight: 900; letter-spacing: .06em; }
+.player-picker img { width: 40px; height: 40px; flex: 0 0 auto; object-fit: contain; border-radius: 50%; background: rgba(255,255,255,.16); }
+.run-mode-picker button { display: flex; min-height: 48px; padding: 6px 8px; flex-direction: column; align-items: center; justify-content: center; }
+.run-mode-picker b { font-size: 10px; letter-spacing: .06em; white-space: nowrap; }
+.run-mode-picker small { margin-top: 2px; font-size: 7px; font-weight: 900; letter-spacing: .1em; opacity: .68; white-space: nowrap; }
+.player-picker button:hover, .run-mode-picker button:hover { color: white; }
+.player-picker button[aria-pressed="true"], .run-mode-picker button[aria-pressed="true"] { color: var(--ink); background: var(--yellow); box-shadow: 0 4px 12px rgba(9,41,50,.2); transform: translateY(-1px); }
+.player-picker button[aria-pressed="true"] img { background: rgba(255,255,255,.5); }
 .difficulty-picker { display: grid; grid-template-columns: repeat(5, 1fr); width: min(560px, 90vw); margin-bottom: 8px; padding: 4px; border: 1px solid rgba(255,255,255,.38); border-radius: 16px; background: rgba(8,44,55,.3); backdrop-filter: blur(8px); }
 .difficulty-picker button { min-height: 42px; padding: 8px 10px; border: 0; border-radius: 12px; color: rgba(255,255,255,.72); background: transparent; font: 900 12px/1 "Nunito", sans-serif; letter-spacing: .08em; cursor: pointer; transition: color .18s ease, background .18s ease, transform .18s ease; }
 .difficulty-picker button:hover { color: white; }
@@ -233,6 +251,7 @@ button { font: inherit; }
 .custom-controls.hidden { display: none; }
 .custom-setting { min-width: 0; }
 .custom-setting-route { grid-column: 1 / -1; }
+.game[data-run-mode="score"] .custom-setting-route { display: none; }
 .custom-setting > span { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; font-size: 8px; font-weight: 900; letter-spacing: .11em; }
 .custom-setting b { font: inherit; }
 .custom-setting output { color: var(--yellow); font-size: 9px; letter-spacing: .04em; }
@@ -253,6 +272,13 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
 .caught-pokemon img { display: block; width: 50px; height: 50px; object-fit: contain; filter: drop-shadow(0 5px 5px rgba(2,20,27,.34)); }
 .caught-pokemon figcaption { overflow: hidden; width: 100%; color: rgba(255,255,255,.9); font-size: 7px; font-weight: 900; letter-spacing: .01em; text-align: center; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .caught-gallery-empty { grid-column: 1 / -1; align-self: center; color: rgba(255,255,255,.68); font-size: 11px; font-weight: 800; }
+.score-summary { display: grid; grid-template-columns: repeat(4, minmax(72px, 1fr)); gap: 7px; width: min(520px, 92vw); margin: 0 0 18px; }
+.score-summary.hidden { display: none; }
+.score-summary > div { padding: 9px 8px 8px; border-top: 1px solid rgba(255,255,255,.38); }
+.score-summary span { display: block; margin-bottom: 2px; color: rgba(255,255,255,.66); font-size: 7px; font-weight: 900; letter-spacing: .13em; }
+.score-summary strong { display: block; font: 800 25px/1 "Baloo 2", sans-serif; }
+.score-summary .score-total strong { color: var(--yellow); }
+.score-summary .score-best { border-color: rgba(255,213,45,.8); }
 .result-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .secondary-button { min-height: 42px; padding: 9px 22px; border: 1px solid rgba(255,255,255,.55); border-radius: 99px; color: white; background: rgba(9,47,58,.28); font-weight: 900; font-size: 11px; letter-spacing: .1em; cursor: pointer; backdrop-filter: blur(7px); }
 .secondary-button:hover { background: rgba(255,255,255,.16); }
@@ -260,6 +286,7 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
 .win-orb { background: var(--yellow); color: var(--ink); }
 .effort-orb { color: white; background: linear-gradient(155deg, #7cb36c 0 48%, #cfbd8c 49% 60%, #183945 61%); text-shadow: 0 2px 5px rgba(0,0,0,.5); }
 .lose-orb { background: var(--red); }
+.score-orb { color: var(--ink); background: linear-gradient(145deg, #fff2a4, var(--yellow)); }
 .pause-orb { background: var(--blue); font-size: 27px; }
 
 .toast { position: absolute; z-index: 12; left: 50%; top: 25%; padding: 9px 15px; border-radius: 30px; color: white; background: rgba(13,49,59,.74); font-size: 12px; font-weight: 900; letter-spacing: .08em; opacity: 0; transform: translate(-50%, 20px) scale(.9); transition: .28s ease; pointer-events: none; }
@@ -299,7 +326,10 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
   .caught-summary { margin-bottom: 14px; }
   .caught-pokemon { grid-template-rows: 44px 12px; }
   .caught-pokemon img { width: 44px; height: 44px; }
-  .difficulty-picker, .difficulty-note, .custom-controls { width: min(560px, 92vw); }
+  .setup-row, .difficulty-label, .difficulty-picker, .difficulty-note, .custom-controls { width: min(560px, 92vw); }
+  .setup-row { grid-template-columns: minmax(0, .95fr) minmax(0, 1.2fr); }
+  .player-picker button { padding-right: 4px; font-size: 9px; }
+  .run-mode-picker b { font-size: 9px; }
   .difficulty-picker button { min-height: 40px; padding-inline: 3px; font-size: 10.5px; letter-spacing: .055em; }
   .difficulty-note { text-align: center; }
   .controls-note { flex-wrap: wrap; justify-content: center; gap: 10px 15px; max-width: 330px; }
@@ -312,6 +342,13 @@ kbd { min-width: 23px; padding: 4px 6px; border: 1px solid rgba(255,255,255,.5);
   .start-screen .title-pokemon { width: 68px; height: 88px; }
   .start-screen h1 { font-size: clamp(43px, 10vh, 67px); line-height: .86; }
   .start-screen p { margin: 9px 0; font-size: 12px; line-height: 1.35; }
+  .setup-row { gap: 7px; margin-bottom: 5px; }
+  .setup-label { margin-bottom: 2px; font-size: 7px; }
+  .player-picker, .run-mode-picker { padding: 2px; border-radius: 11px; }
+  .player-picker button, .run-mode-picker button { min-height: 38px; border-radius: 8px; }
+  .player-picker img { width: 32px; height: 32px; }
+  .run-mode-picker button { padding: 3px 5px; }
+  .run-mode-picker small { display: none; }
   .difficulty-picker { margin-bottom: 5px; }
   .difficulty-picker button { min-height: 34px; padding: 6px 5px; font-size: 10px; letter-spacing: .055em; }
   .difficulty-note { min-height: 13px; margin-bottom: 8px; font-size: 8px; }

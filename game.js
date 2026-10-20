@@ -17,6 +17,9 @@
     targetChip: document.getElementById("targetChip"),
     targetName: document.getElementById("targetName"),
     targetStatus: document.getElementById("targetStatus"),
+    progressLabel: document.getElementById("progressLabel"),
+    progressGoal: document.getElementById("progressGoal"),
+    progressTrack: document.getElementById("progressTrack"),
     caught: document.getElementById("caughtCount"),
     balls: document.getElementById("ballCount"),
     ballInventory: document.getElementById("ballInventory"),
@@ -28,11 +31,24 @@
     progress: document.getElementById("progressFill"),
     finalCaught: document.getElementById("finalCaught"),
     effortCaught: document.getElementById("effortCaught"),
+    winTitle: document.getElementById("winTitle"),
+    effortTitle: document.getElementById("effortTitle"),
+    overEyebrow: document.getElementById("gameOverEyebrow"),
+    overOrb: document.getElementById("gameOverOrb"),
     overTitle: document.getElementById("gameOverTitle"),
     overReason: document.getElementById("gameOverReason"),
+    scoreSummary: document.getElementById("scoreSummary"),
+    pokemonPoints: document.getElementById("pokemonPoints"),
+    ballPoints: document.getElementById("ballPoints"),
+    totalScore: document.getElementById("totalScore"),
+    bestScore: document.getElementById("bestScore"),
+    bestScoreLabel: document.getElementById("bestScoreLabel"),
+    overCaughtLabel: document.getElementById("gameOverCaughtLabel"),
     caughtGalleries: [...document.querySelectorAll(".caught-gallery")],
     toast: document.getElementById("toast"),
     game: document.getElementById("game"),
+    playerButtons: [...document.querySelectorAll("[data-player]")],
+    runModeButtons: [...document.querySelectorAll("[data-run-mode]")],
     difficultyButtons: [...document.querySelectorAll("[data-difficulty]")],
     difficultyDescription: document.getElementById("difficultyDescription"),
     customControls: document.getElementById("customControls"),
@@ -53,6 +69,16 @@
 
   const TAU = Math.PI * 2;
   const WIN_TARGET = 15;
+  const PLAYERS = {
+    aaron: { name: "Aaron", avatar: "assets/players/aaron-avatar.png" },
+    amelia: { name: "Amelia", avatar: "assets/players/amelia-avatar.png" }
+  };
+  const BALL_SCORES = { poke: 10, great: 20, ultra: 35, master: 50 };
+  const SCORE_BLOCK = 1000;
+  const PREFERENCE_KEYS = {
+    player: "poke-run-player-v1",
+    runMode: "poke-run-mode-v1"
+  };
   const GYM_OBSTACLE_SPEED = .092;
   const GYM_POKEMON_SPEED = .052;
   const BALL_ORDER = ["poke", "great", "ultra", "master"];
@@ -62,6 +88,19 @@
     ultra: { label: "ULTRA", fullLabel: "ULTRA BALL", range: .61, pickupColor: "#f0c936" },
     master: { label: "MASTER", fullLabel: "MASTER BALL", range: Infinity, pickupColor: "#9a5fbd" }
   };
+
+  function readPreference(key, fallback) {
+    try { return localStorage.getItem(key) || fallback; }
+    catch (error) { return fallback; }
+  }
+
+  function savePreference(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch (error) { /* The game still works when storage is unavailable. */ }
+  }
+
+  const savedPlayer = readPreference(PREFERENCE_KEYS.player, "aaron");
+  const savedRunMode = readPreference(PREFERENCE_KEYS.runMode, "team");
   // National Pokédex height values in meters, sourced from PokeAPI.
   const creatureData = [
     [1,"bulbasaur",.7],[2,"ivysaur",1],[3,"venusaur",2],[4,"charmander",.6],[5,"charmeleon",1.1],[6,"charizard",1.7],
@@ -317,6 +356,12 @@
     ui.customControls.setAttribute("aria-hidden", String(!visible));
   }
 
+  function difficultyDescription(difficulty = state.difficulty) {
+    const description = DIFFICULTIES[difficulty].description;
+    if (state.gameMode !== "score") return description;
+    return `${description.replace("3 gyms", "repeating gyms").replace(/ • \d+ sightings/g, "")} • endless score run`;
+  }
+
   function updateCustomDifficulty() {
     const speedPercent = Number(ui.customSpeed.value);
     const obstacleCount = Number(ui.customObstacles.value);
@@ -340,13 +385,15 @@
     ui.customPokemonValue.textContent = String(encounterCount);
     ui.customRouteLengthValue.textContent = `${routeLength} SIGHTINGS`;
     if (state.difficulty === "custom") {
-      ui.difficultyDescription.textContent = custom.description;
+      ui.difficultyDescription.textContent = difficultyDescription("custom");
       updateHUD();
     }
   }
 
   const state = {
     mode: "intro",
+    player: PLAYERS[savedPlayer] ? savedPlayer : "aaron",
+    gameMode: savedRunMode === "score" ? "score" : "team",
     lane: 0,
     visualLane: 0,
     arenaX: 0,
@@ -359,6 +406,9 @@
     difficulty: "explorer",
     caught: 0,
     caughtPokemon: [],
+    score: 0,
+    pokemonPoints: 0,
+    ballPoints: 0,
     distance: 0,
     routeLength: 30,
     sightingsSpawned: 0,
@@ -410,6 +460,45 @@
   let height = 0;
   let dpr = 1;
   let toastTimer = 0;
+
+  function currentPlayer() {
+    return PLAYERS[state.player] || PLAYERS.aaron;
+  }
+
+  function pokemonScore(creature) {
+    if (creature.legendary) return 750;
+    if (creature.iconic) return 250;
+    return 100;
+  }
+
+  function bestScoreStorageKey() {
+    return `poke-run-best-v1:${state.player}:${state.difficulty}`;
+  }
+
+  function getBestScore() {
+    const value = Number(readPreference(bestScoreStorageKey(), "0"));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  function saveBestScore(score) {
+    savePreference(bestScoreStorageKey(), String(score));
+  }
+
+  function endlessDifficultyRamp() {
+    return state.gameMode === "score" ? Math.min(.45, state.distance * .012) : 0;
+  }
+
+  function syncSetupControls() {
+    ui.playerButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.player === state.player)));
+    ui.runModeButtons.forEach(button => button.setAttribute("aria-pressed", String(button.dataset.runMode === state.gameMode)));
+    const startLabel = ui.startButton.querySelector("span");
+    if (startLabel) startLabel.textContent = state.gameMode === "score" ? "START HIGH SCORE" : "START TEAM RUN";
+    const playerName = currentPlayer().name;
+    ui.winTitle.textContent = `You did it, ${playerName}!`;
+    ui.effortTitle.textContent = `Good effort, ${playerName}!`;
+    ui.overTitle.textContent = `Nice Try, ${playerName}!`;
+    ui.difficultyDescription.textContent = difficultyDescription();
+  }
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -641,7 +730,9 @@
     state.scenery = [];
 
     state.creatures = [];
-    const encounterCount = Math.min(difficulty.encounterCount, state.routeLength);
+    const encounterCount = state.gameMode === "score"
+      ? difficulty.encounterCount
+      : Math.min(difficulty.encounterCount, state.routeLength);
     const encounterGap = encounterCount > 1 ? .60 / (encounterCount - 1) : 0;
     for (let i = 0; i < encounterCount; i++) {
       spawnCreature(.10 + i * encounterGap, i % 2 ? 1 : -1);
@@ -664,7 +755,7 @@
   }
 
   function spawnCreature(z = .08, side = Math.random() > .5 ? 1 : -1) {
-    if (state.sightingsSpawned >= state.routeLength) return false;
+    if (state.gameMode === "team" && state.sightingsSpawned >= state.routeLength) return false;
     const caughtTypes = new Set(state.creatures.map(c => c.type));
     const options = creatureRoster.filter(c => !caughtTypes.has(c.type));
     const base = chooseEncounter(options.length ? options : creatureRoster);
@@ -810,7 +901,8 @@
     const difficulty = DIFFICULTIES[state.difficulty];
     Object.assign(state, {
       mode: "playing", lane: 0, visualLane: 0, arenaX: 0, visualArenaX: 0, playerZ: .89, visualZ: .89,
-      health: 3, balls: { ...difficulty.startingInventory }, ballType: "poke", caught: 0, caughtPokemon: [], speed: difficulty.speed,
+      health: 3, balls: { ...difficulty.startingInventory }, ballType: "poke", caught: 0, caughtPokemon: [],
+      score: 0, pokemonPoints: 0, ballPoints: 0, speed: difficulty.speed,
       roadSeed: Math.random() * 10000,
       distance: 0, routeLength: difficulty.routeLength, sightingsSpawned: 0, sightingsResolved: 0,
       finishLineActive: false, finishLineZ: .04, finishLineLastGap: null,
@@ -830,7 +922,9 @@
     seedWorld();
     updateHUD();
     hideAllOverlays();
-    showToast(`${difficulty.label} MODE • CATCH ${WIN_TARGET}`);
+    showToast(state.gameMode === "score"
+      ? `${difficulty.label} • SCORE AS MUCH AS YOU CAN`
+      : `${difficulty.label} MODE • CATCH ${WIN_TARGET}`);
   }
 
   function hideAllOverlays() {
@@ -860,15 +954,20 @@
     ui.start.classList.remove("hidden");
     ui.start.setAttribute("aria-hidden", "false");
     randomizeTitlePokemon();
+    syncSetupControls();
     setCustomControlsVisible(state.difficulty === "custom");
-    ui.difficultyDescription.textContent = DIFFICULTIES[state.difficulty].description;
+    ui.difficultyDescription.textContent = difficultyDescription();
     updateHUD();
   }
 
   function updateHUD() {
     const ball = BALL_TYPES[state.ballType];
     const ballCount = state.balls[state.ballType] || 0;
-    ui.caught.textContent = state.caught;
+    const scoreMode = state.gameMode === "score";
+    ui.progressLabel.textContent = scoreMode ? "SCORE" : "TEAM";
+    ui.progressTrack.setAttribute("aria-label", scoreMode ? "Score progress to the next thousand points" : "Pokémon caught progress");
+    ui.caught.textContent = (scoreMode ? state.score : state.caught).toLocaleString();
+    ui.progressGoal.textContent = scoreMode ? "" : `/${WIN_TARGET}`;
     ui.balls.textContent = ballCount;
     ui.ballTypeName.textContent = ball.label;
     ui.throwLabel.textContent = `${ball.label} • SWIPE ↑`;
@@ -878,7 +977,8 @@
     }
     ui.ballInventory.setAttribute("aria-label", `${ball.fullLabel}: ${ballCount}`);
     ui.throwPad.setAttribute("aria-label", `Tap to switch ball type; swipe upward to throw ${ball.fullLabel}`);
-    ui.progress.style.width = `${Math.min(100, state.caught / WIN_TARGET * 100)}%`;
+    const scoreProgress = state.score === 0 ? 0 : state.score % SCORE_BLOCK || SCORE_BLOCK;
+    ui.progress.style.width = `${scoreMode ? scoreProgress / SCORE_BLOCK * 100 : Math.min(100, state.caught / WIN_TARGET * 100)}%`;
     ui.hearts.forEach((heart, index) => heart.classList.toggle("lost", index >= state.health));
     const distance = state.selected ? creatureRangeDistance(state.selected) : Infinity;
     const inRange = !!state.selected && distance <= ball.range;
@@ -902,6 +1002,9 @@
     ui.game.dataset.ballCount = String(ballCount);
     ui.game.dataset.targetInRange = String(inRange);
     ui.game.dataset.difficulty = state.difficulty;
+    ui.game.dataset.player = state.player;
+    ui.game.dataset.runMode = state.gameMode;
+    ui.game.dataset.score = String(state.score);
     ui.game.dataset.routeSpeed = state.speed.toFixed(3);
     ui.game.dataset.encounterCount = String(DIFFICULTIES[state.difficulty].encounterCount);
     ui.game.dataset.routeLength = String(state.routeLength);
@@ -1047,14 +1150,21 @@
     item.hit = true;
     const type = item.ballType || "poke";
     state.balls[type] = (state.balls[type] || 0) + 1;
+    const points = BALL_SCORES[type] || 0;
+    if (state.gameMode === "score") {
+      state.ballPoints += points;
+      state.score += points;
+    }
     burst(laneX(item.lane, item.z), roadGeometry(item.z).y, BALL_TYPES[type].pickupColor, 10);
-    showToast(`${BALL_TYPES[type].fullLabel} +1`);
+    showToast(state.gameMode === "score"
+      ? `${BALL_TYPES[type].fullLabel} +1 • +${points} PTS`
+      : `${BALL_TYPES[type].fullLabel} +1`);
     updateHUD();
   }
 
   function selectCreature(creature) {
     if (state.mode !== "playing" || creature.caught) return;
-    if (state.caught >= WIN_TARGET) {
+    if (state.gameMode === "team" && state.caught >= WIN_TARGET) {
       showToast("TEAM COMPLETE • RUN COMPLETE");
       return;
     }
@@ -1092,40 +1202,77 @@
   function finishCatch(target) {
     target.caught = true;
     burst(target.screenX, target.screenY, "#ffd52d", 24);
-    state.caughtPokemon.push({ dex: target.dex, name: target.name, asset: target.asset });
-    state.caught = Math.min(WIN_TARGET, state.caught + 1);
+    const points = pokemonScore(target);
+    state.caughtPokemon.push({ dex: target.dex, name: target.name, asset: target.asset, points });
+    state.caught = state.gameMode === "score" ? state.caught + 1 : Math.min(WIN_TARGET, state.caught + 1);
+    if (state.gameMode === "score") {
+      state.pokemonPoints += points;
+      state.score += points;
+    }
     state.selected = null;
     state.thrown = null;
     state.throwing = false;
     state.ballType = lowestAvailableBall();
     updateHUD();
-    if (state.caught >= WIN_TARGET) {
+    if (state.gameMode === "team" && state.caught >= WIN_TARGET) {
       showToast("TEAM COMPLETE!");
       endGame(true, "caught");
       return;
     }
     const gymCleared = target.arena && state.gymCreatures.every(creature => creature === target || creature.caught);
-    showToast(gymCleared ? "GYM CLEARED • EXIT WHEN READY" : `${target.name.toUpperCase()} CAUGHT!`);
+    showToast(gymCleared
+      ? state.gameMode === "score" ? `GYM CLEARED • +${points} PTS` : "GYM CLEARED • EXIT WHEN READY"
+      : state.gameMode === "score" ? `${target.name.toUpperCase()} • +${points} PTS` : `${target.name.toUpperCase()} CAUGHT!`);
   }
 
   function endGame(won, reason = "obstacle") {
     if (state.mode === "won" || state.mode === "effort" || state.mode === "over") return;
-    const effort = !won && reason === "roadEnd";
+    const scoreMode = state.gameMode === "score";
+    const playerName = currentPlayer().name;
+    const effort = !scoreMode && !won && reason === "roadEnd";
+    if (scoreMode) won = false;
     state.mode = won ? "won" : effort ? "effort" : "over";
     ui.gymExitButton.classList.add("hidden");
     const screen = won ? ui.win : effort ? ui.effort : ui.over;
     ui.finalCaught.textContent = state.caught;
     ui.effortCaught.textContent = state.caught;
+    ui.winTitle.textContent = `You did it, ${playerName}!`;
+    ui.effortTitle.textContent = `Good effort, ${playerName}!`;
+    ui.scoreSummary.classList.toggle("hidden", !scoreMode);
+    ui.overOrb.textContent = scoreMode ? "★" : "×";
+    ui.overOrb.classList.toggle("score-orb", scoreMode);
+    ui.overOrb.classList.toggle("lose-orb", !scoreMode);
+    ui.overCaughtLabel.textContent = scoreMode ? "RECENT CATCHES" : "CAUGHT THIS RUN";
     renderCaughtGalleries();
-    if (!won && !effort) {
-      ui.overTitle.textContent = "Nice Try, Aaron!";
+    if (scoreMode) {
+      const previousBest = getBestScore();
+      const newBest = state.score > previousBest;
+      const best = Math.max(previousBest, state.score);
+      if (newBest) saveBestScore(state.score);
+      ui.overEyebrow.textContent = newBest ? "NEW HIGH SCORE" : "HIGH SCORE RUN";
+      ui.overTitle.textContent = `Great run, ${playerName}!`;
+      ui.overReason.innerHTML = reason === "river"
+        ? `You missed the bridge after catching <strong>${state.caught}</strong> Pokémon.`
+        : reason === "riverSide"
+          ? `You tumbled beyond the road after catching <strong>${state.caught}</strong> Pokémon.`
+          : reason === "roadGap"
+            ? `The lane ended after you caught <strong>${state.caught}</strong> Pokémon.`
+            : `The route got tough after you caught <strong>${state.caught}</strong> Pokémon.`;
+      ui.pokemonPoints.textContent = state.pokemonPoints.toLocaleString();
+      ui.ballPoints.textContent = state.ballPoints.toLocaleString();
+      ui.totalScore.textContent = state.score.toLocaleString();
+      ui.bestScore.textContent = best.toLocaleString();
+      ui.bestScoreLabel.textContent = newBest ? "NEW BEST" : "BEST";
+    } else if (!won && !effort) {
+      ui.overEyebrow.textContent = "THE ROUTE GOT TOUGH";
+      ui.overTitle.textContent = `Nice Try, ${playerName}!`;
       ui.overReason.innerHTML = reason === "river"
         ? `The bridge was in the center lane. You caught <strong>${state.caught}</strong> Pokémon.`
         : reason === "riverSide"
           ? `You stepped beyond the road and tumbled into the valley. You caught <strong>${state.caught}</strong> Pokémon.`
           : reason === "roadGap"
             ? `That lane ended above the valley. You caught <strong>${state.caught}</strong> Pokémon.`
-          : `You caught <strong>${state.caught}</strong> Pokémon this run.`;
+            : `You caught <strong>${state.caught}</strong> Pokémon this run.`;
     }
     screen.classList.remove("hidden");
     screen.setAttribute("aria-hidden", "false");
@@ -1141,7 +1288,8 @@
         gallery.appendChild(empty);
         continue;
       }
-      for (const pokemon of state.caughtPokemon) {
+      const recentPokemon = state.gameMode === "score" ? state.caughtPokemon.slice(-15) : state.caughtPokemon;
+      for (const pokemon of recentPokemon) {
         const figure = document.createElement("figure");
         figure.className = "caught-pokemon";
         figure.title = pokemon.name;
@@ -1223,8 +1371,9 @@
     state.flash = Math.max(0, state.flash - dt);
     state.shake = Math.max(0, state.shake - dt);
 
-    const obstacleSpeed = GYM_OBSTACLE_SPEED * (1 + state.forwardBoost * .25);
-    const pokemonSpeed = GYM_POKEMON_SPEED * (1 + state.forwardBoost * .12);
+    const endlessFactor = 1 + endlessDifficultyRamp();
+    const obstacleSpeed = GYM_OBSTACLE_SPEED * endlessFactor * (1 + state.forwardBoost * .25);
+    const pokemonSpeed = GYM_POKEMON_SPEED * endlessFactor * (1 + state.forwardBoost * .12);
     for (let index = 0; index < state.gymObstacles.length; index++) {
       const item = state.gymObstacles[index];
       item.z += obstacleSpeed * dt;
@@ -1281,7 +1430,7 @@
       return;
     }
     state.forwardBoost = Math.max(0, state.forwardBoost - dt * 1.65);
-    const travelSpeed = state.speed * (1 + state.forwardBoost);
+    const travelSpeed = state.speed * (1 + endlessDifficultyRamp()) * (1 + state.forwardBoost);
     state.distance += travelSpeed * dt;
     state.animTime += dt;
     if (state.riverFall) state.riverFallTime += dt;
@@ -1291,11 +1440,15 @@
     state.flash = Math.max(0, state.flash - dt);
     state.shake = Math.max(0, state.shake - dt);
 
-    if (!state.gymGateActive && state.gymsEntered < 3 && state.sightingsResolved >= state.gymSchedule[state.gymsEntered]) {
+    const nextGymSighting = state.gameMode === "score"
+      ? 8 + state.gymsEntered * 10
+      : state.gymSchedule[state.gymsEntered];
+    const canOpenGym = state.gameMode === "score" || state.gymsEntered < 3;
+    if (!state.gymGateActive && canOpenGym && state.sightingsResolved >= nextGymSighting) {
       activateGymGate(state.gymsEntered);
     }
 
-    if (!state.finishLineActive && !state.gymGateActive && state.sightingsResolved >= state.routeLength) {
+    if (state.gameMode === "team" && !state.finishLineActive && !state.gymGateActive && state.sightingsResolved >= state.routeLength) {
       const startIsClear = !state.crossings.some(crossing => !crossing.disabled && Math.abs(crossing.z - .04) < .22);
       if (startIsClear) activateEndOfRoad();
     }
@@ -1316,7 +1469,8 @@
         item.hit = false;
         const difficulty = DIFFICULTIES[state.difficulty];
         if (!difficulty.customCounts) {
-          const wantsObstacle = Math.random() < difficulty.obstacleRate;
+          const endlessObstacleBonus = state.gameMode === "score" ? Math.min(.18, state.distance * .003) : 0;
+          const wantsObstacle = Math.random() < Math.min(.82, difficulty.obstacleRate + endlessObstacleBonus);
           item.kind = wantsObstacle ? "obstacle" : "ball";
         }
         item.lane = item.kind === "obstacle" ? chooseObstacleLane(item.z) : randomLane(item.z);
@@ -1384,7 +1538,9 @@
         }
         const idx = state.creatures.indexOf(creature);
         state.creatures.splice(idx, 1);
-        state.sightingsResolved = Math.min(state.routeLength, state.sightingsResolved + 1);
+        state.sightingsResolved = state.gameMode === "score"
+          ? state.sightingsResolved + 1
+          : Math.min(state.routeLength, state.sightingsResolved + 1);
         spawnCreature(randomBetween(.025, .08));
         updateHUD();
         break;
@@ -2364,10 +2520,10 @@
         ctx.save();
         ctx.fillStyle = `rgba(16,48,40,${.12 + road.e * .15})`;
         ctx.beginPath();
-        ctx.ellipse(x + 5 * scale, road.y + 3, 32 * scale * (1 - rollLift * .009), 9 * scale, 0, 0, TAU);
+        ctx.ellipse(x + 4 * scale, road.y + 3, 25.6 * scale * (1 - rollLift * .009), 7.2 * scale, 0, 0, TAU);
         ctx.fill();
         ctx.restore();
-        drawPokeball(x, road.y - 36 * scale - rollLift, 36 * scale, item.spin, item.ballType || "poke");
+        drawPokeball(x, road.y - 28.8 * scale - rollLift, 28.8 * scale, item.spin, item.ballType || "poke");
       } else drawObstacle(item, x, road.y, scale);
     }
   }
@@ -2549,7 +2705,7 @@
     const bodyBob = state.riverFall ? 0 : (1 - Math.cos(walkPhase * 2)) * .45 * s;
 
     if (state.riverFall) {
-      // The contact shadow stays on the road while Aaron separates from it.
+      // The contact shadow stays on the road while the trainer separates from it.
       ctx.save();
       ctx.globalAlpha = Math.max(0, .24 * (1 - fallProgress * 1.15));
       ctx.fillStyle = "#173f37";
@@ -2830,12 +2986,28 @@
   });
 
   ui.startButton.addEventListener("click", resetGame);
+  ui.playerButtons.forEach(button => button.addEventListener("click", () => {
+    const player = button.dataset.player;
+    if (!PLAYERS[player]) return;
+    state.player = player;
+    savePreference(PREFERENCE_KEYS.player, player);
+    syncSetupControls();
+    updateHUD();
+  }));
+  ui.runModeButtons.forEach(button => button.addEventListener("click", () => {
+    const runMode = button.dataset.runMode;
+    if (runMode !== "team" && runMode !== "score") return;
+    state.gameMode = runMode;
+    savePreference(PREFERENCE_KEYS.runMode, runMode);
+    syncSetupControls();
+    updateHUD();
+  }));
   ui.difficultyButtons.forEach(button => button.addEventListener("click", () => {
     const difficulty = button.dataset.difficulty;
     if (!DIFFICULTIES[difficulty]) return;
     state.difficulty = difficulty;
     ui.difficultyButtons.forEach(option => option.setAttribute("aria-pressed", String(option === button)));
-    ui.difficultyDescription.textContent = DIFFICULTIES[difficulty].description;
+    ui.difficultyDescription.textContent = difficultyDescription(difficulty);
     setCustomControlsVisible(difficulty === "custom");
     updateHUD();
   }));
@@ -2852,6 +3024,7 @@
 
   updateCustomDifficulty();
   randomizeTitlePokemon();
+  syncSetupControls();
   setCustomControlsVisible(false);
   resize();
   seedWorld();

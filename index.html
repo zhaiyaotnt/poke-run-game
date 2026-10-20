@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=31" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -28,10 +28,10 @@
 
         <div class="progress-group">
           <div class="progress-copy">
-            <span>TEAM</span>
-            <strong><span id="caughtCount">0</span>/15</strong>
+            <span id="progressLabel">TEAM</span>
+            <strong><span id="caughtCount">0</span><span id="progressGoal">/15</span></strong>
           </div>
-          <div class="progress-track" aria-label="Pokémon caught progress">
+          <div id="progressTrack" class="progress-track" aria-label="Pokémon caught progress">
             <span id="progressFill"></span>
           </div>
         </div>
@@ -73,6 +73,29 @@
           <img id="titlePokemonRight" class="title-pokemon title-pokemon-right" alt="" aria-hidden="true" />
         </div>
         <p>Move closer to bring Pokémon into range. Tap the ball to switch type, then swipe it upward to throw.</p>
+        <div class="setup-row">
+          <div class="setup-choice player-choice">
+            <span class="setup-label">PLAYER</span>
+            <div class="player-picker" role="group" aria-label="Choose player">
+              <button type="button" data-player="aaron" aria-pressed="true">
+                <img src="assets/players/aaron-avatar.png" alt="" />
+                <span>AARON</span>
+              </button>
+              <button type="button" data-player="amelia" aria-pressed="false">
+                <img src="assets/players/amelia-avatar.png" alt="" />
+                <span>AMELIA</span>
+              </button>
+            </div>
+          </div>
+          <div class="setup-choice run-choice">
+            <span class="setup-label">RUN TYPE</span>
+            <div class="run-mode-picker" role="group" aria-label="Choose run type">
+              <button type="button" data-run-mode="team" aria-pressed="true"><b>TEAM RUN</b><small>CATCH 15</small></button>
+              <button type="button" data-run-mode="score" aria-pressed="false"><b>HIGH SCORE</b><small>RUN FOREVER</small></button>
+            </div>
+          </div>
+        </div>
+        <span class="setup-label difficulty-label">DIFFICULTY</span>
         <div class="difficulty-picker" role="group" aria-label="Choose difficulty">
           <button type="button" data-difficulty="explorer" aria-pressed="true">EXPLORER</button>
           <button type="button" data-difficulty="trainer" aria-pressed="false">TRAINER</button>
@@ -124,7 +147,7 @@
       <section id="winScreen" class="overlay result-screen hidden" aria-hidden="true">
         <div class="result-orb win-orb">★</div>
         <div class="eyebrow">TEAM COMPLETE</div>
-        <h2>You did it, Aaron!</h2>
+        <h2 id="winTitle">You did it, Aaron!</h2>
         <p>You caught all 15 Pokémon. What a run!</p>
         <div class="caught-summary">
           <span>CAUGHT THIS RUN</span>
@@ -139,7 +162,7 @@
       <section id="effortScreen" class="overlay result-screen hidden" aria-hidden="true">
         <div class="result-orb effort-orb">↘</div>
         <div class="eyebrow">END OF ROAD</div>
-        <h2>Good effort, Aaron!</h2>
+        <h2 id="effortTitle">Good effort, Aaron!</h2>
         <p>The road ended above the valley. You caught <strong id="effortCaught">0</strong> Pokémon—catch 15 to complete the team.</p>
         <div class="caught-summary">
           <span>CAUGHT THIS RUN</span>
@@ -152,12 +175,18 @@
       </section>
 
       <section id="gameOverScreen" class="overlay result-screen hidden" aria-hidden="true">
-        <div class="result-orb lose-orb">×</div>
-        <div class="eyebrow">THE ROUTE GOT TOUGH</div>
+        <div id="gameOverOrb" class="result-orb lose-orb">×</div>
+        <div id="gameOverEyebrow" class="eyebrow">THE ROUTE GOT TOUGH</div>
         <h2 id="gameOverTitle">Nice Try, Aaron!</h2>
         <p id="gameOverReason">You caught <strong id="finalCaught">0</strong> Pokémon this run.</p>
+        <div id="scoreSummary" class="score-summary hidden" aria-label="Score breakdown">
+          <div><span>POKÉMON</span><strong id="pokemonPoints">0</strong></div>
+          <div><span>POKÉ BALLS</span><strong id="ballPoints">0</strong></div>
+          <div class="score-total"><span>TOTAL</span><strong id="totalScore">0</strong></div>
+          <div class="score-best"><span id="bestScoreLabel">BEST</span><strong id="bestScore">0</strong></div>
+        </div>
         <div class="caught-summary">
-          <span>CAUGHT THIS RUN</span>
+          <span id="gameOverCaughtLabel">CAUGHT THIS RUN</span>
           <div class="caught-gallery" aria-label="Pokémon caught this run"></div>
         </div>
         <div class="result-actions">
@@ -169,12 +198,12 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=30"></script>
+    <script src="game.js?v=31"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {
           try {
-            await navigator.serviceWorker.register("./service-worker.js?v=30");
+            await navigator.serviceWorker.register("./service-worker.js?v=31");
             const registration = await navigator.serviceWorker.ready;
             registration.active?.postMessage({ type: "CACHE_FULL_ROSTER" });
           } catch (error) {
