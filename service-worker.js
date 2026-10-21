@@ -1,4 +1,4 @@
-const CACHE_NAME = "poke-run-two-step-setup-v38";
+const CACHE_NAME = "poke-run-two-step-setup-v39";
 
 const CORE_ASSETS = [
   "./",

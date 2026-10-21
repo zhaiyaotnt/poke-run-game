@@ -16,7 +16,6 @@
     pauseButton: document.getElementById("pauseButton"),
     gymExitButton: document.getElementById("gymExitButton"),
     throwPad: document.getElementById("throwPad"),
-    jumpButton: document.getElementById("jumpButton"),
     targetChip: document.getElementById("targetChip"),
     targetName: document.getElementById("targetName"),
     targetStatus: document.getElementById("targetStatus"),
@@ -1253,8 +1252,8 @@
     }
   }
 
-  const JUMP_DURATION = .62;
-  const JUMP_CLEAR_HEIGHT = .38;
+  const JUMP_DURATION = .88;
+  const JUMP_CLEAR_HEIGHT = .30;
 
   function startJump() {
     if (state.mode !== "playing" || state.riverFall || state.jumpT !== null) return;
@@ -2919,7 +2918,7 @@
     const x = baseX + fallSlide;
     const depthScale = .62 + player.road.e * .48;
     const s = Math.max(.66, Math.min(1.12, height / 760)) * depthScale;
-    const jumpLiftPx = state.jumpHeight * 105 * s;
+    const jumpLiftPx = state.jumpHeight * 118 * s;
     const walkRate = 5.2 + state.forwardBoost * 1.6;
     const frameFloat = state.riverFall ? 1.25 + fallProgress * 1.4 : state.animTime * walkRate;
     const frame = Math.floor(frameFloat) % 4;
@@ -3119,7 +3118,8 @@
     state.gestureHandled = true;
     state.gestureCandidate = null;
     if (Math.abs(dx) > Math.abs(dy)) moveLane(dx > 0 ? 1 : -1);
-    else moveDepth(dy < 0 ? -1 : 1);
+    else if (dy < 0) startJump();
+    else moveDepth(1);
   });
 
   function finishCanvasGesture(event) {
@@ -3132,7 +3132,8 @@
       selectCreature(state.gestureCandidate);
     } else if (!state.gestureHandled && Math.max(Math.abs(dx), Math.abs(dy)) >= 28) {
       if (Math.abs(dx) > Math.abs(dy)) moveLane(dx > 0 ? 1 : -1);
-      else moveDepth(dy < 0 ? -1 : 1);
+      else if (dy < 0) startJump();
+      else moveDepth(1);
     }
     state.pointer = null;
     state.gestureHandled = false;
@@ -3204,9 +3205,8 @@
     if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Space","KeyA","KeyD","KeyW","KeyS"].includes(event.code)) event.preventDefault();
     if (event.code === "ArrowLeft" || event.code === "KeyA") moveLane(-1);
     if (event.code === "ArrowRight" || event.code === "KeyD") moveLane(1);
-    if (event.code === "ArrowUp" || event.code === "KeyW") moveDepth(-1);
+    if (event.code === "ArrowUp" || event.code === "KeyW") startJump();
     if (event.code === "ArrowDown" || event.code === "KeyS") moveDepth(1);
-    if (event.code === "KeyJ") startJump();
     if (event.code === "Space") {
       if (!state.selected) {
         const activeCreatures = state.inGym ? state.gymCreatures : state.creatures;
@@ -3217,10 +3217,6 @@
     if (event.code === "Escape" || event.code === "KeyP") togglePause();
   });
 
-  ui.jumpButton.addEventListener("pointerdown", event => {
-    event.preventDefault();
-    startJump();
-  });
   ui.startButton.addEventListener("click", resetGame);
   ui.resumeRun.addEventListener("click", () => {
     if (!pendingRunRestore) return;
