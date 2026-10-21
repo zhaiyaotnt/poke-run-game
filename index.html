@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=32" />
+    <link rel="stylesheet" href="styles.css?v=33" />
   </head>
   <body>
     <main id="game" class="game" aria-label="Poké Run game">
@@ -59,6 +59,11 @@
         <span class="target-dot"></span>
         <div><small id="targetStatus">TARGET LOCKED</small><strong id="targetName">Pikachu</strong></div>
       </div>
+
+      <button id="jumpButton" class="jump-button" type="button" aria-label="Jump over obstacles">
+        <span class="jump-icon" aria-hidden="true">⤒</span>
+        <span class="jump-label">JUMP</span>
+      </button>
 
       <button id="throwPad" class="throw-pad" type="button" aria-label="Tap to switch ball type; swipe upward to throw">
         <span id="throwBall" class="throw-ball ball-poke"></span>
@@ -147,6 +152,7 @@
             <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> MOVE</span>
             <span><kbd>SPACE</kbd> THROW</span>
             <span>SWIPE ROAD TO MOVE • TAP BALL TO SWITCH</span>
+            <span><kbd>J</kbd> OR TAP ⤒ TO JUMP OBSTACLES</span>
           </div>
         </div>
       </section>
@@ -215,7 +221,7 @@
       <div id="toast" class="toast" aria-live="polite"></div>
     </main>
 
-    <script src="game.js?v=35"></script>
+    <script src="game.js?v=36"></script>
     <script>
       if ("serviceWorker" in navigator && location.protocol !== "file:") {
         window.addEventListener("load", async () => {

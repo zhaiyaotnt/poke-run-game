@@ -16,6 +16,7 @@
     pauseButton: document.getElementById("pauseButton"),
     gymExitButton: document.getElementById("gymExitButton"),
     throwPad: document.getElementById("throwPad"),
+    jumpButton: document.getElementById("jumpButton"),
     targetChip: document.getElementById("targetChip"),
     targetName: document.getElementById("targetName"),
     targetStatus: document.getElementById("targetStatus"),
@@ -543,6 +544,8 @@
     riverFallTime: 0,
     throwing: false,
     dragCurrent: null,
+    jumpT: null,
+    jumpHeight: 0,
     inGym: false,
     gymsEntered: 0,
     gymSchedule: [],
@@ -1029,6 +1032,7 @@
       invulnerable: 0, particles: [], floaters: [], pointer: null, gestureHandled: false, gestureCandidate: null,
       ballGestureStart: null, ballGestureCurrent: null, ballGestureHandled: false,
       riverFall: false, fallSide: 0, riverFallTime: 0, throwing: false, dragCurrent: null,
+      jumpT: null, jumpHeight: 0,
       inGym: false, gymsEntered: 0, gymSchedule: [
         Math.max(4, Math.round(difficulty.routeLength * .25)),
         Math.max(8, Math.round(difficulty.routeLength * .50)),
@@ -1247,6 +1251,33 @@
       ui.pause.setAttribute("aria-hidden", "true");
       state.lastTime = performance.now();
     }
+  }
+
+  const JUMP_DURATION = .62;
+  const JUMP_CLEAR_HEIGHT = .38;
+
+  function startJump() {
+    if (state.mode !== "playing" || state.riverFall || state.jumpT !== null) return;
+    state.jumpT = 0;
+  }
+
+  function advanceJump(dt) {
+    if (state.riverFall) { state.jumpT = null; state.jumpHeight = 0; return; }
+    if (state.jumpT === null) { state.jumpHeight = 0; return; }
+    state.jumpT += dt;
+    const t = state.jumpT / JUMP_DURATION;
+    if (t >= 1) {
+      state.jumpT = null;
+      state.jumpHeight = 0;
+      const p = trainerScreenPosition();
+      burst(p.x, p.y - 2, "#d8c491", 5);
+      return;
+    }
+    state.jumpHeight = Math.sin(t * Math.PI);
+  }
+
+  function isAirborne() {
+    return state.jumpHeight > JUMP_CLEAR_HEIGHT;
   }
 
   function hitObstacle() {
@@ -1551,6 +1582,7 @@
   function updateGym(dt) {
     state.gymTime += dt;
     state.animTime += dt;
+    advanceJump(dt);
     state.forwardBoost = Math.max(0, state.forwardBoost - dt * 1.65);
     state.visualLane = settleToward(state.visualLane, state.lane, 11, dt);
     state.visualArenaX = settleToward(state.visualArenaX, state.arenaX, 11, dt);
@@ -1572,7 +1604,8 @@
       item.lastGap = gap;
       if (!item.hit && crossedTrainerLine && Math.abs(arenaDriftX(item) - state.visualArenaX) < .25) {
         item.hit = true;
-        hitObstacle();
+        if (isAirborne()) { const p = trainerScreenPosition(); spawnFloater(p.x, p.y - 130, "CLEARED!", "#ffe45e"); }
+        else hitObstacle();
       }
       if (item.z > 1.08) resetGymObstacle(item, index);
     }
@@ -1623,6 +1656,7 @@
     const travelSpeed = state.speed * (1 + endlessDifficultyRamp()) * (1 + state.forwardBoost);
     state.distance += travelSpeed * dt;
     state.animTime += dt;
+    advanceJump(dt);
     if (state.riverFall) state.riverFallTime += dt;
     state.visualLane = settleToward(state.visualLane, state.lane, 10, dt);
     state.visualZ = settleToward(state.visualZ, state.playerZ, 11, dt);
@@ -1652,6 +1686,7 @@
       item.lastGap = gap;
       if (!item.hit && crossedTrainerLine && item.lane === state.lane) {
         if (item.kind === "ball") collectBall(item);
+        else if (isAirborne()) { item.hit = true; const p = trainerScreenPosition(); spawnFloater(p.x, p.y - 130, "CLEARED!", "#ffe45e"); }
         else { item.hit = true; hitObstacle(); }
       }
       if (item.z > 1.1) {
@@ -2884,6 +2919,7 @@
     const x = baseX + fallSlide;
     const depthScale = .62 + player.road.e * .48;
     const s = Math.max(.66, Math.min(1.12, height / 760)) * depthScale;
+    const jumpLiftPx = state.jumpHeight * 105 * s;
     const walkRate = 5.2 + state.forwardBoost * 1.6;
     const frameFloat = state.riverFall ? 1.25 + fallProgress * 1.4 : state.animTime * walkRate;
     const frame = Math.floor(frameFloat) % 4;
@@ -2933,16 +2969,18 @@
       const imageHeight = 192 * s;
       const imageWidth = imageHeight * (cellWidth / cellHeight);
       ctx.save();
-      ctx.translate(x, y - bodyBob + fallDrop);
+      ctx.translate(x, y - bodyBob - jumpLiftPx + fallDrop);
       ctx.rotate(fallTilt);
       ctx.scale(fallScale * fallStretchX, fallScale);
       const baseAlpha = state.invulnerable > 0 && Math.floor(state.invulnerable * 12) % 2 ? .38 : 1;
       ctx.globalAlpha = fallOpacity;
       if (!state.riverFall) {
         ctx.fillStyle = "rgba(33,65,48,.24)";
+        ctx.globalAlpha = fallOpacity * (1 - state.jumpHeight * .45);
         ctx.beginPath();
-        ctx.ellipse(0, 4 + bodyBob, imageWidth * (.285 + Math.cos(walkPhase * 2) * .008), 10 * s, 0, 0, TAU);
+        ctx.ellipse(0, 4 + bodyBob + jumpLiftPx, imageWidth * (.285 + Math.cos(walkPhase * 2) * .008) * (1 - state.jumpHeight * .35), 10 * s * (1 - state.jumpHeight * .35), 0, 0, TAU);
         ctx.fill();
+        ctx.globalAlpha = fallOpacity;
       }
       ctx.shadowColor = "rgba(12,45,54,.34)";
       ctx.shadowBlur = 12;
@@ -2968,10 +3006,10 @@
       ctx.restore();
       return;
     }
-    ctx.save(); ctx.translate(x, y + fallDrop); ctx.rotate(fallTilt); ctx.scale(s * fallScale * fallStretchX, s * fallScale);
+    ctx.save(); ctx.translate(x, y - jumpLiftPx + fallDrop); ctx.rotate(fallTilt); ctx.scale(s * fallScale * fallStretchX, s * fallScale);
     ctx.globalAlpha = fallOpacity;
     if (state.invulnerable > 0 && Math.floor(state.invulnerable * 12) % 2) ctx.globalAlpha = .38;
-    if (!state.riverFall) { ctx.fillStyle="rgba(33,65,48,.22)";ctx.beginPath();ctx.ellipse(0,8,39,11,0,0,TAU);ctx.fill(); }
+    if (!state.riverFall) { ctx.fillStyle="rgba(33,65,48,.22)";ctx.beginPath();ctx.ellipse(0,8 + jumpLiftPx,39 * (1 - state.jumpHeight * .35),11 * (1 - state.jumpHeight * .35),0,0,TAU);ctx.fill(); }
     ctx.strokeStyle="#284b61";ctx.lineWidth=13;ctx.lineCap="round";
     ctx.beginPath();ctx.moveTo(-8,-36);ctx.lineTo(-14+run*4,0);ctx.stroke();ctx.beginPath();ctx.moveTo(8,-36);ctx.lineTo(15-run*4,0);ctx.stroke();
     ctx.fillStyle="#f4f0e6";ctx.beginPath();ctx.ellipse(-15+run*4,3,13,6,0,0,TAU);ctx.ellipse(16-run*4,3,13,6,0,0,TAU);ctx.fill();
@@ -3012,6 +3050,7 @@
   }
 
   function render() {
+    ui.game.dataset.jumpHeight = state.jumpHeight.toFixed(3);
     ctx.save();
     if (state.shake > 0) ctx.translate(randomBetween(-8,8)*state.shake/.38, randomBetween(-5,5)*state.shake/.38);
     if (state.inGym) {
@@ -3167,6 +3206,7 @@
     if (event.code === "ArrowRight" || event.code === "KeyD") moveLane(1);
     if (event.code === "ArrowUp" || event.code === "KeyW") moveDepth(-1);
     if (event.code === "ArrowDown" || event.code === "KeyS") moveDepth(1);
+    if (event.code === "KeyJ") startJump();
     if (event.code === "Space") {
       if (!state.selected) {
         const activeCreatures = state.inGym ? state.gymCreatures : state.creatures;
@@ -3177,6 +3217,10 @@
     if (event.code === "Escape" || event.code === "KeyP") togglePause();
   });
 
+  ui.jumpButton.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    startJump();
+  });
   ui.startButton.addEventListener("click", resetGame);
   ui.resumeRun.addEventListener("click", () => {
     if (!pendingRunRestore) return;
